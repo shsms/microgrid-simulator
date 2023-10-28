@@ -8,6 +8,9 @@ edition = "2021"
 [dependencies]
 tonic = "0.10.2"
 prost = "0.12.1"
+prost-types = "0.12.1"
+tokio = { version = "1.33.0", features = ["rt-multi-thread", "macros"] }
 
 [build-dependencies]
 tonic-build = "0.10.2"
+prost-build = "0.12.1"
