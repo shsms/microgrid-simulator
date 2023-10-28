@@ -3,13 +3,13 @@ name = "mock-microgrid"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 tonic = "0.10.2"
 prost = "0.12.1"
 prost-types = "0.12.1"
-tokio = { version = "1.33.0", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.33.0", features = ["rt", "macros"] }
+tokio-stream = "0.1.14"
+tulisp = "0.10.2"
 
 [build-dependencies]
 tonic-build = "0.10.2"
