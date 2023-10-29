@@ -1,3 +1,5 @@
+use self::common::components::ComponentCategory;
+
 pub mod common {
     pub mod components {
         tonic::include_proto!("frequenz.api.common.components");
@@ -43,3 +45,22 @@ pub mod microgrid {
         tonic::include_proto!("frequenz.api.microgrid.sensor");
     }
 }
+
+macro_rules! impl_enum_from_str {
+    ($(($t:ty, $p:literal)),+) => {
+        $(
+            impl std::str::FromStr for $t {
+                type Err = ();
+
+                fn from_str(s: &str) -> Result<Self, Self::Err> {
+                    match <$t>::from_str_name(($p.to_string() + s).to_uppercase().as_str()) {
+                        Some(x) => Ok(x),
+                        None => Err(()),
+                    }
+                }
+            }
+        )+
+    };
+}
+
+impl_enum_from_str!((ComponentCategory, "COMPONENT_CATEGORY_"));

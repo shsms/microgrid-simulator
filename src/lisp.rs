@@ -1,9 +1,10 @@
-use std::{any::Any, collections::HashMap, rc::Rc};
+use std::{any::Any, collections::HashMap, rc::Rc, str::FromStr};
 
 use prost_types::Timestamp;
 use tulisp::{list, tulisp_fn, Error, TulispContext, TulispObject};
 
 use crate::proto::{
+    self,
     common::{
         components::ComponentCategory,
         metrics::{electrical::Dc, Bounds, Metric, MetricAggregation},
@@ -28,8 +29,7 @@ unsafe impl Send for Config {}
 
 macro_rules! alist_get_as {
     ($ctx: expr, $rest:expr, $key:expr, $as_fn:ident) => {{
-        let key = $ctx.intern($key);
-        tulisp::lists::alist_get($ctx, &key, $rest, None, None, None).and_then(|x| x.$as_fn())
+        alist_get_as!($ctx, $rest, $key).and_then(|x| x.$as_fn())
     }};
     ($ctx: expr, $rest:expr, $key:expr) => {{
         let key = $ctx.intern($key);
@@ -43,6 +43,21 @@ macro_rules! alist_get_f32 {
     };
 }
 
+fn enum_from_alist<T: FromStr + Default>(
+    ctx: &mut TulispContext,
+    alist: &TulispObject,
+    key: &str,
+) -> T {
+    let val = alist_get_as!(ctx, alist, key, as_symbol).unwrap_or_default();
+    match val.parse::<T>() {
+        Ok(x) => x,
+        Err(_) => {
+            println!("Invalid value for {}: {}", key, val);
+            Default::default()
+        }
+    }
+}
+
 fn make_component_from_alist(
     ctx: &mut TulispContext,
     alist: &TulispObject,
@@ -50,10 +65,7 @@ fn make_component_from_alist(
     let comp = Component {
         id: alist_get_as!(ctx, alist, "id", as_int)? as u64,
         name: alist_get_as!(ctx, alist, "name", as_string).unwrap_or_default(),
-        category: ComponentCategory::from_str_name(&alist_get_as!(
-            ctx, alist, "category", as_string
-        )?)
-        .unwrap_or_default() as i32,
+        category: enum_from_alist::<ComponentCategory>(ctx, alist, "category") as i32,
 
         ..Default::default()
     };

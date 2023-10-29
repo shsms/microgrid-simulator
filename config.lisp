@@ -11,7 +11,7 @@
 (setq components-alist
       `(((id . 1)
          (name . "bat_0")
-         (category . "COMPONENT_CATEGORY_BATTERY")
+         (category . battery)
          (stream . ((interval . 200)
                     (data . (lambda (id)
                               (battery-data `((id . ,id)
@@ -23,7 +23,7 @@
 
         ((id . 2)
          (name . "bat_1")
-         (category . "COMPONENT_CATEGORY_BATTERY")
+         (category . battery)
          (stream . ((interval . 200)
                     (data . (lambda (id)
                               (battery-data `((id . ,id)
