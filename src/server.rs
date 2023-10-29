@@ -53,6 +53,15 @@ impl Microgrid for MicrogridServer {
         let (tx, rx) = tokio::sync::mpsc::channel(128);
         tokio::spawn(async move {
             let mut config = crate::lisp::Config::new(&filename);
+            let inotify = inotify::Inotify::init().unwrap();
+            inotify
+                .watches()
+                .add(filename.clone(), inotify::WatchMask::MODIFY)
+                .unwrap();
+
+            let mut buffer = [0; 1024];
+            let mut inotify_stream = inotify.into_event_stream(&mut buffer).unwrap();
+
             let mut last_msg_ts = SystemTime::now();
             loop {
                 let (data, interval) = config.get_component_data(id as u64).unwrap();
@@ -64,10 +73,14 @@ impl Microgrid for MicrogridServer {
 
                 let now = SystemTime::now();
                 let tgt_ts = last_msg_ts + Duration::from_millis(interval as u64);
-                tokio::time::sleep(Duration::from_millis(
-                    tgt_ts.duration_since(now).unwrap().as_millis() as u64,
-                ))
-                .await;
+                let dur =
+                    Duration::from_millis(tgt_ts.duration_since(now).unwrap().as_millis() as u64);
+                tokio::select! {
+                    _ = inotify_stream.next() => {
+                        config = crate::lisp::Config::new(&filename);
+                    }
+                    _ = tokio::time::sleep(dur) => {}
+                }
                 last_msg_ts = tgt_ts;
             }
         });
@@ -85,7 +98,11 @@ impl Microgrid for MicrogridServer {
         todo!()
     }
 
+    //
+    //
     // Unused methods
+    //
+    //
     async fn add_exclusion_bounds(
         &self,
         _request: tonic::Request<SetBoundsParam>,
