@@ -6,7 +6,9 @@
                          (capacity . 92000.0)
                          (voltage . 800.0)
                          (inclusion-lower . -30000.0)
-                         (inclusion-upper . 30000.0)))
+                         (inclusion-upper . 30000.0)
+                         (component-state . idle)
+                         (relay-state . closed)))
 
 (setq components-alist
       `(((id . 1)
@@ -17,6 +19,7 @@
                               (battery-data `((id . ,id)
                                               (soc . 92.0)
                                               (power . -23444.0)
+                                              (component-state . discharging)
                                               (exclusion-lower . -300.0)
                                               (exclusion-upper . 300.0)
                                               ,@battery-defaults)))))))
@@ -29,6 +32,7 @@
                               (battery-data `((id . ,id)
                                               (soc . 91.0)
                                               (power . -20000.0)
+                                              (component-state . discharging)
                                               ,@battery-defaults)))))))))
 
 

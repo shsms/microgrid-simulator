@@ -4,7 +4,6 @@ use prost_types::Timestamp;
 use tulisp::{list, tulisp_fn, Error, TulispContext, TulispObject};
 
 use crate::proto::{
-    self,
     common::{
         components::ComponentCategory,
         metrics::{electrical::Dc, Bounds, Metric, MetricAggregation},
@@ -170,6 +169,10 @@ fn add_functions(ctx: &mut TulispContext) {
         let exclusion_lower = alist_get_f32!(ctx, &alist, "exclusion-lower");
         let exclusion_upper = alist_get_f32!(ctx, &alist, "exclusion-upper");
 
+        let component_state =
+            enum_from_alist::<battery::ComponentState>(ctx, &alist, "component-state") as i32;
+        let relay_state = enum_from_alist::<battery::RelayState>(ctx, &alist, "relay-state") as i32;
+
         return Ok(Rc::new(ComponentData {
             ts: Some(Timestamp::from(std::time::SystemTime::now())),
             id,
@@ -178,7 +181,10 @@ fn add_functions(ctx: &mut TulispContext) {
                     capacity,
                     ..Default::default()
                 }),
-                state: None,
+                state: Some(battery::State {
+                    component_state,
+                    relay_state,
+                }),
                 errors: vec![],
                 data: Some(battery::Data {
                     soc: Some(MetricAggregation {

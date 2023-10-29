@@ -1,4 +1,4 @@
-use self::common::components::ComponentCategory;
+use self::{common::components::ComponentCategory, microgrid::battery};
 
 pub mod common {
     pub mod components {
@@ -63,4 +63,8 @@ macro_rules! impl_enum_from_str {
     };
 }
 
-impl_enum_from_str!((ComponentCategory, "COMPONENT_CATEGORY_"));
+impl_enum_from_str!(
+    (ComponentCategory, "COMPONENT_CATEGORY_"),
+    (battery::ComponentState, "COMPONENT_STATE_"),
+    (battery::RelayState, "RELAY_STATE_")
+);
