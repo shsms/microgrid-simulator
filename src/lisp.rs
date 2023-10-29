@@ -1,7 +1,7 @@
 use std::{any::Any, collections::HashMap, rc::Rc};
 
 use prost_types::Timestamp;
-use tulisp::{tulisp_fn, Error, TulispContext, TulispObject};
+use tulisp::{list, tulisp_fn, Error, TulispContext, TulispObject};
 
 use crate::proto::{
     common::{
@@ -129,7 +129,7 @@ impl Config {
 
         let comp_data = self
             .ctx
-            .funcall(&data_method, &TulispObject::nil())?
+            .funcall(&data_method, &list!((component_id as i64).into())?)?
             .as_any()?
             .downcast_ref::<ComponentData>()
             .unwrap()
@@ -142,6 +142,7 @@ impl Config {
 fn add_functions(ctx: &mut TulispContext) {
     #[tulisp_fn(add_func = "ctx", name = "battery-data")]
     fn battery_data(ctx: &mut TulispContext, alist: TulispObject) -> Result<Rc<dyn Any>, Error> {
+        let id = alist_get_as!(ctx, &alist, "id", as_int)? as u64;
         let capacity = alist_get_f32!(ctx, &alist, "capacity");
 
         let soc_avg = alist_get_f32!(ctx, &alist, "soc");
@@ -159,7 +160,7 @@ fn add_functions(ctx: &mut TulispContext) {
 
         return Ok(Rc::new(ComponentData {
             ts: Some(Timestamp::from(std::time::SystemTime::now())),
-            id: 0,
+            id,
             data: Some(component_data::Data::Battery(battery::Battery {
                 properties: Some(battery::Properties {
                     capacity,
