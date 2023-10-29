@@ -1,8 +1,5 @@
 use std::{any::Any, cell::RefCell, collections::HashMap, rc::Rc, str::FromStr};
 
-use prost_types::Timestamp;
-use tulisp::{list, tulisp_fn, Error, TulispContext, TulispObject};
-
 use crate::proto::{
     common::{
         components::{BatteryType, ComponentCategory, EvChargerType, InverterType},
@@ -16,9 +13,14 @@ use crate::proto::{
         ComponentList, Connection, ConnectionList,
     },
 };
+use prost_types::Timestamp;
+use tokio_stream::StreamExt;
+use tulisp::{list, tulisp_fn, Error, TulispContext, TulispObject};
 
 #[derive(Default, Clone)]
 pub struct Config {
+    filename: String,
+
     ctx: Rc<RefCell<tulisp::TulispContext>>,
 
     /// Component ID -> (ComponentData Method, Interval)
@@ -112,9 +114,38 @@ impl Config {
         add_functions(&mut ctx);
         ctx.eval_file(filename).unwrap();
         Self {
+            filename: filename.to_string(),
             ctx: Rc::new(RefCell::new(ctx)),
             stream_methods: Rc::new(RefCell::new(HashMap::new())),
         }
+    }
+
+    pub fn reload(&self) {
+        let mut ctx = tulisp::TulispContext::new();
+        add_functions(&mut ctx);
+        ctx.eval_file(&self.filename).unwrap();
+
+        *self.ctx.borrow_mut() = ctx;
+        *self.stream_methods.borrow_mut() = HashMap::new();
+    }
+
+    pub fn start_watching(&self) {
+        let config = self.clone();
+
+        tokio::spawn(async move {
+            let inotify = inotify::Inotify::init().unwrap();
+            inotify
+                .watches()
+                .add(config.filename.clone(), inotify::WatchMask::MODIFY)
+                .unwrap();
+
+            let mut buffer = [0; 1024];
+            let mut inotify_stream = inotify.into_event_stream(&mut buffer).unwrap();
+
+            while let Some(_) = inotify_stream.next().await {
+                config.reload();
+            }
+        });
     }
 
     pub fn socket_addr(&self) -> String {

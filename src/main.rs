@@ -5,8 +5,8 @@ use tonic::transport::Server;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
-    let mut config = lisp::Config::new("config.lisp");
-
+    let config = lisp::Config::new("config.lisp");
+    config.start_watching();
     let socket_addr = config.socket_addr();
     println!("Server listening on {}", socket_addr);
 
