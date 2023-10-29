@@ -14,6 +14,7 @@
       `(((id . 1)
          (name . "bat_0")
          (category . battery)
+         (type . li_ion)
          (stream . ((interval . 200)
                     (data . (lambda (id)
                               (battery-data `((id . ,id)
