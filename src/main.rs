@@ -10,9 +10,7 @@ async fn main() {
     let socket_addr = config.socket_addr();
     println!("Server listening on {}", socket_addr);
 
-    let server = server::MicrogridServer {
-        config: "config.lisp".to_string(),
-    };
+    let server = server::MicrogridServer { config };
     Server::builder()
         .add_service(proto::microgrid::microgrid_server::MicrogridServer::new(
             server,

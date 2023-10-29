@@ -2,8 +2,9 @@ use std::pin::Pin;
 use std::time::{Duration, SystemTime};
 
 use tokio_stream::wrappers::ReceiverStream;
-use tokio_stream::{Stream, StreamExt};
+use tokio_stream::Stream;
 
+use crate::lisp::Config;
 use crate::proto::microgrid::microgrid_server::Microgrid;
 use crate::proto::microgrid::{
     ComponentData, ComponentFilter, ComponentIdParam, ComponentList, ConnectionFilter,
@@ -11,7 +12,7 @@ use crate::proto::microgrid::{
 };
 
 pub struct MicrogridServer {
-    pub config: String,
+    pub config: Config,
 }
 
 #[tonic::async_trait]
@@ -27,16 +28,14 @@ impl Microgrid for MicrogridServer {
         &self,
         _request: tonic::Request<ComponentFilter>,
     ) -> std::result::Result<tonic::Response<ComponentList>, tonic::Status> {
-        let components = crate::lisp::Config::new(&self.config).components().unwrap();
+        let components = self.config.components().unwrap();
         Ok(tonic::Response::new(components))
     }
     async fn list_connections(
         &self,
         _request: tonic::Request<ConnectionFilter>,
     ) -> std::result::Result<tonic::Response<ConnectionList>, tonic::Status> {
-        let connections = crate::lisp::Config::new(&self.config)
-            .connections()
-            .unwrap();
+        let connections = self.config.connections().unwrap();
         Ok(tonic::Response::new(connections))
     }
 
@@ -48,20 +47,11 @@ impl Microgrid for MicrogridServer {
         request: tonic::Request<ComponentIdParam>,
     ) -> std::result::Result<tonic::Response<Self::StreamComponentDataStream>, tonic::Status> {
         let id = request.into_inner().id;
-        let filename = self.config.clone();
 
         let (tx, rx) = tokio::sync::mpsc::channel(128);
+        let config = self.config.clone();
+
         tokio::spawn(async move {
-            let mut config = crate::lisp::Config::new(&filename);
-            let inotify = inotify::Inotify::init().unwrap();
-            inotify
-                .watches()
-                .add(filename.clone(), inotify::WatchMask::MODIFY)
-                .unwrap();
-
-            let mut buffer = [0; 1024];
-            let mut inotify_stream = inotify.into_event_stream(&mut buffer).unwrap();
-
             let mut last_msg_ts = SystemTime::now();
             loop {
                 let (data, interval) = config.get_component_data(id as u64).unwrap();
@@ -75,12 +65,7 @@ impl Microgrid for MicrogridServer {
                 let tgt_ts = last_msg_ts + Duration::from_millis(interval as u64);
                 let dur =
                     Duration::from_millis(tgt_ts.duration_since(now).unwrap().as_millis() as u64);
-                tokio::select! {
-                    _ = inotify_stream.next() => {
-                        config = crate::lisp::Config::new(&filename);
-                    }
-                    _ = tokio::time::sleep(dur) => {}
-                }
+                tokio::time::sleep(dur).await;
                 last_msg_ts = tgt_ts;
             }
         });

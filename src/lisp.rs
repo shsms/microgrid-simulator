@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap, rc::Rc, str::FromStr};
+use std::{any::Any, cell::RefCell, collections::HashMap, rc::Rc, str::FromStr};
 
 use prost_types::Timestamp;
 use tulisp::{list, tulisp_fn, Error, TulispContext, TulispObject};
@@ -17,17 +17,18 @@ use crate::proto::{
     },
 };
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Config {
-    ctx: tulisp::TulispContext,
+    ctx: Rc<RefCell<tulisp::TulispContext>>,
 
     /// Component ID -> (ComponentData Method, Interval)
-    stream_methods: HashMap<u64, (TulispObject, u64)>,
+    stream_methods: Rc<RefCell<HashMap<u64, (TulispObject, u64)>>>,
 }
 
 // Tokio is configured to use the current_thread runtime, so it is not unsafe to
-// make `Config` Send.
+// make `Config` Send and Sync.
 unsafe impl Send for Config {}
+unsafe impl Sync for Config {}
 
 macro_rules! alist_get_as {
     ($ctx: expr, $rest:expr, $key:expr, $as_fn:ident) => {{
@@ -111,30 +112,31 @@ impl Config {
         add_functions(&mut ctx);
         ctx.eval_file(filename).unwrap();
         Self {
-            ctx,
-            ..Default::default()
+            ctx: Rc::new(RefCell::new(ctx)),
+            stream_methods: Rc::new(RefCell::new(HashMap::new())),
         }
     }
 
-    pub fn socket_addr(&mut self) -> String {
+    pub fn socket_addr(&self) -> String {
         self.ctx
+            .borrow_mut()
             .eval_string("socket-addr")
             .and_then(|x| x.as_string())
             .unwrap()
     }
 
-    pub fn components(&mut self) -> Result<ComponentList, Error> {
-        let alists = self.ctx.eval_string("components-alist")?;
+    pub fn components(&self) -> Result<ComponentList, Error> {
+        let alists = self.ctx.borrow_mut().eval_string("components-alist")?;
         Ok(ComponentList {
             components: alists
                 .base_iter()
-                .map(|x| make_component_from_alist(&mut self.ctx, &x).unwrap())
+                .map(|x| make_component_from_alist(&mut self.ctx.borrow_mut(), &x).unwrap())
                 .collect(),
         })
     }
 
-    pub fn connections(&mut self) -> Result<ConnectionList, Error> {
-        let alist = self.ctx.eval_string("connections-alist")?;
+    pub fn connections(&self) -> Result<ConnectionList, Error> {
+        let alist = self.ctx.borrow_mut().eval_string("connections-alist")?;
         Ok(ConnectionList {
             connections: alist
                 .base_iter()
@@ -147,33 +149,36 @@ impl Config {
         })
     }
 
-    pub fn get_component_data(&mut self, component_id: u64) -> Result<(ComponentData, u64), Error> {
+    pub fn get_component_data(&self, component_id: u64) -> Result<(ComponentData, u64), Error> {
+        let mut stream_methods = self.stream_methods.borrow_mut();
         let (data_method, interval) = if let Some((data_method, interval)) =
-            self.stream_methods.get(&component_id)
+            stream_methods.get(&component_id)
         {
             (data_method.clone(), *interval)
         } else {
-            let alists = self.ctx.eval_string("components-alist")?;
+            let alists = self.ctx.borrow_mut().eval_string("components-alist")?;
             let comp = alists
                 .base_iter()
                 .find(|x| {
-                    alist_get_as!(&mut self.ctx, &x, "id", as_int).unwrap() as u64 == component_id
+                    alist_get_as!(&mut self.ctx.borrow_mut(), &x, "id", as_int).unwrap() as u64
+                        == component_id
                 })
                 .expect(&format!("Component id {component_id} not found"));
 
-            let stream = alist_get_as!(&mut self.ctx, &comp, "stream").unwrap();
+            let stream = alist_get_as!(&mut self.ctx.borrow_mut(), &comp, "stream").unwrap();
 
-            let interval = alist_get_as!(&mut self.ctx, &stream, "interval", as_int).unwrap();
-            let data_method = alist_get_as!(&mut self.ctx, &stream, "data").unwrap();
+            let interval =
+                alist_get_as!(&mut self.ctx.borrow_mut(), &stream, "interval", as_int).unwrap();
+            let data_method = alist_get_as!(&mut self.ctx.borrow_mut(), &stream, "data").unwrap();
 
-            self.stream_methods
-                .insert(component_id, (data_method.clone(), interval as u64));
+            stream_methods.insert(component_id, (data_method.clone(), interval as u64));
 
             (data_method, interval as u64)
         };
 
         let comp_data = self
             .ctx
+            .borrow_mut()
             .funcall(&data_method, &list!((component_id as i64).into())?)?
             .as_any()?
             .downcast_ref::<ComponentData>()
