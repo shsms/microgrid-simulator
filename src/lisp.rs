@@ -12,7 +12,7 @@ use crate::proto::{
         },
     },
     microgrid::{
-        battery, component, component_data, ev_charger, inverter, Component, ComponentData,
+        battery, component, component_data, ev_charger, inverter, meter, Component, ComponentData,
         ComponentList, Connection, ConnectionList,
     },
 };
@@ -347,6 +347,23 @@ fn add_functions(ctx: &mut TulispContext) {
             data: Some(component_data::Data::Inverter(inverter::Inverter {
                 state: Some(inverter::State { component_state }),
                 data: Some(inverter::Data {
+                    ac: Some(ac_from_alist(ctx, &alist)?),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            })),
+        }));
+    }
+
+    #[tulisp_fn(add_func = "ctx", name = "meter-data")]
+    fn meter_data(ctx: &mut TulispContext, alist: TulispObject) -> Result<Rc<dyn Any>, Error> {
+        let id = alist_get_as!(ctx, &alist, "id", as_int)? as u64;
+
+        return Ok(Rc::new(ComponentData {
+            ts: Some(Timestamp::from(std::time::SystemTime::now())),
+            id,
+            data: Some(component_data::Data::Meter(meter::Meter {
+                data: Some(meter::Data {
                     ac: Some(ac_from_alist(ctx, &alist)?),
                     ..Default::default()
                 }),

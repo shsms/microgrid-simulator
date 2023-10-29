@@ -24,7 +24,22 @@
                           ))
 
 (setq components-alist
-      `(((id . 2)
+      `(((id . 1)
+         (name . "grid")
+         (category . grid))
+
+        ((id . 2)
+         (name . "meter_0")
+         (category . meter)
+         (stream . ((interval . ,meter-interval)
+                    (data . (lambda (id)
+                              (meter-data `((id . ,id)
+                                            (power . 23444.0)
+                                            (current . (2.1 3.0 4.5))
+                                            (exclusion-lower . -300.0)
+                                            (exclusion-upper . 300.0))))))))
+
+        ((id . 3)
          (name . "inv_0")
          (category . inverter)
          (type . battery)
@@ -39,7 +54,7 @@
                                                ,@inverter-defaults))))))
          )
 
-        ((id . 3)
+        ((id . 4)
          (name . "bat_0")
          (category . battery)
          (type . li_ion)
@@ -52,22 +67,12 @@
                                               (exclusion-lower . -300.0)
                                               (exclusion-upper . 300.0)
                                               ,@battery-defaults)))))))
-
-        ;; ((id . 5)
-        ;;  (name . "bat_1")
-        ;;  (category . battery)
-        ;;  (stream . ((interval . battery-interval)
-        ;;             (data . (lambda (id)
-        ;;                       (battery-data `((id . ,id)
-        ;;                                       (soc . 91.0)
-        ;;                                       (power . -20000.0)
-        ;;                                       (component-state . discharging)
-        ;;                                       ,@battery-defaults)))))))
         ))
 
 
 
 (setq connections-alist
       '((1 . 2)
-        (2 . 3)))
+        (2 . 3)
+        (3 . 4)))
 
