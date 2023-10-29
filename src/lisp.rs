@@ -5,12 +5,12 @@ use tulisp::{list, tulisp_fn, Error, TulispContext, TulispObject};
 
 use crate::proto::{
     common::{
-        components::ComponentCategory,
+        components::{BatteryType, ComponentCategory, EvChargerType, InverterType},
         metrics::{electrical::Dc, Bounds, Metric, MetricAggregation},
     },
     microgrid::{
-        battery, component_data, Component, ComponentData, ComponentList, Connection,
-        ConnectionList,
+        battery, component, component_data, ev_charger, inverter, Component, ComponentData,
+        ComponentList, Connection, ConnectionList,
     },
 };
 
@@ -61,10 +61,30 @@ fn make_component_from_alist(
     ctx: &mut TulispContext,
     alist: &TulispObject,
 ) -> Result<Component, Error> {
+    let id = alist_get_as!(ctx, alist, "id", as_int)? as u64;
+    let name = alist_get_as!(ctx, alist, "name", as_string).unwrap_or_default();
+    let category = enum_from_alist::<ComponentCategory>(ctx, alist, "category");
+
+    let metadata = match category {
+        ComponentCategory::Inverter => Some(component::Metadata::Inverter(inverter::Metadata {
+            r#type: enum_from_alist::<InverterType>(ctx, alist, "type") as i32,
+        })),
+        ComponentCategory::Battery => Some(component::Metadata::Battery(battery::Metadata {
+            r#type: enum_from_alist::<BatteryType>(ctx, alist, "type") as i32,
+        })),
+        ComponentCategory::EvCharger => {
+            Some(component::Metadata::EvCharger(ev_charger::Metadata {
+                r#type: enum_from_alist::<EvChargerType>(ctx, alist, "type") as i32,
+            }))
+        }
+        _ => None,
+    };
+
     let comp = Component {
-        id: alist_get_as!(ctx, alist, "id", as_int)? as u64,
-        name: alist_get_as!(ctx, alist, "name", as_string).unwrap_or_default(),
-        category: enum_from_alist::<ComponentCategory>(ctx, alist, "category") as i32,
+        id,
+        name,
+        category: category as i32,
+        metadata,
 
         ..Default::default()
     };
