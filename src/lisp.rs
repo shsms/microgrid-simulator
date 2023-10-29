@@ -6,7 +6,10 @@ use tulisp::{list, tulisp_fn, Error, TulispContext, TulispObject};
 use crate::proto::{
     common::{
         components::{BatteryType, ComponentCategory, EvChargerType, InverterType},
-        metrics::{electrical::Dc, Bounds, Metric, MetricAggregation},
+        metrics::{
+            electrical::{ac::AcPhase, Ac, Dc},
+            Bounds, Metric, MetricAggregation,
+        },
     },
     microgrid::{
         battery, component, component_data, ev_charger, inverter, Component, ComponentData,
@@ -40,6 +43,17 @@ macro_rules! alist_get_f32 {
     ($ctx: expr, $rest:expr, $key:expr) => {
         alist_get_as!($ctx, $rest, $key, as_float).unwrap_or_default() as f32
     };
+}
+
+macro_rules! alist_get_3_phase {
+    ($ctx: expr, $rest:expr, $key:expr) => {{
+        let items = alist_get_as!($ctx, $rest, $key).unwrap_or_default();
+        (
+            items.car().and_then(|x| x.as_float()).unwrap_or_default() as f32,
+            items.cadr().and_then(|x| x.as_float()).unwrap_or_default() as f32,
+            items.caddr().and_then(|x| x.as_float()).unwrap_or_default() as f32,
+        )
+    }};
 }
 
 fn enum_from_alist<T: FromStr + Default>(
@@ -242,6 +256,101 @@ fn add_functions(ctx: &mut TulispContext) {
                     }),
                     ..Default::default()
                 }),
+            })),
+        }));
+    }
+
+    fn ac_from_alist(ctx: &mut TulispContext, alist: &TulispObject) -> Result<Ac, Error> {
+        let frequency = ctx
+            .eval_string("ac-frequency")
+            .and_then(|x| x.as_float())
+            .unwrap_or_default() as f32;
+        let current = alist_get_3_phase!(ctx, &alist, "current");
+        let voltage = alist_get_3_phase!(ctx, &alist, "voltage");
+        let power = alist_get_f32!(ctx, &alist, "power");
+
+        let inclusion_lower = alist_get_f32!(ctx, &alist, "inclusion-lower");
+        let inclusion_upper = alist_get_f32!(ctx, &alist, "inclusion-upper");
+        let exclusion_lower = alist_get_f32!(ctx, &alist, "exclusion-lower");
+        let exclusion_upper = alist_get_f32!(ctx, &alist, "exclusion-upper");
+
+        Ok(Ac {
+            frequency: Some(Metric {
+                value: frequency,
+                ..Default::default()
+            }),
+            current: Some(Metric {
+                // TODO: what is a 3 phase current?  is this the sum of all 3 phases?
+                value: current.0 + current.1 + current.2,
+                ..Default::default()
+            }),
+            power_active: Some(Metric {
+                value: power,
+                system_inclusion_bounds: Some(Bounds {
+                    lower: inclusion_lower,
+                    upper: inclusion_upper,
+                }),
+                system_exclusion_bounds: Some(Bounds {
+                    lower: exclusion_lower,
+                    upper: exclusion_upper,
+                }),
+                ..Default::default()
+            }),
+            phase_1: Some(AcPhase {
+                voltage: Some(Metric {
+                    value: voltage.0,
+                    ..Default::default()
+                }),
+                current: Some(Metric {
+                    value: current.0,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            phase_2: Some(AcPhase {
+                voltage: Some(Metric {
+                    value: voltage.1,
+                    ..Default::default()
+                }),
+                current: Some(Metric {
+                    value: current.1,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            phase_3: Some(AcPhase {
+                voltage: Some(Metric {
+                    value: voltage.2,
+                    ..Default::default()
+                }),
+                current: Some(Metric {
+                    value: current.2,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        })
+    }
+
+    #[tulisp_fn(add_func = "ctx", name = "inverter-data")]
+    fn inverter_data(ctx: &mut TulispContext, alist: TulispObject) -> Result<Rc<dyn Any>, Error> {
+        let id = alist_get_as!(ctx, &alist, "id", as_int)? as u64;
+
+        let component_state =
+            enum_from_alist::<inverter::ComponentState>(ctx, &alist, "component-state")
+                .unwrap_or_default() as i32;
+
+        return Ok(Rc::new(ComponentData {
+            ts: Some(Timestamp::from(std::time::SystemTime::now())),
+            id,
+            data: Some(component_data::Data::Inverter(inverter::Inverter {
+                state: Some(inverter::State { component_state }),
+                data: Some(inverter::Data {
+                    ac: Some(ac_from_alist(ctx, &alist)?),
+                    ..Default::default()
+                }),
+                ..Default::default()
             })),
         }));
     }

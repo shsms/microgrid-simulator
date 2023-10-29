@@ -1,6 +1,6 @@
 use self::{
     common::components::{BatteryType, ComponentCategory, EvChargerType, InverterType},
-    microgrid::battery,
+    microgrid::{battery, inverter},
 };
 
 pub mod common {
@@ -50,7 +50,7 @@ pub mod microgrid {
 }
 
 macro_rules! impl_enum_from_str {
-    ($(($t:ty, $p:literal)),+) => {
+    ($(($t:ty, $p:literal),)+) => {
         $(
             impl std::str::FromStr for $t {
                 type Err = ();
@@ -72,5 +72,6 @@ impl_enum_from_str!(
     (InverterType, "INVERTER_TYPE_"),
     (EvChargerType, "EV_CHARGER_TYPE_"),
     (battery::ComponentState, "COMPONENT_STATE_"),
-    (battery::RelayState, "RELAY_STATE_")
+    (battery::RelayState, "RELAY_STATE_"),
+    (inverter::ComponentState, "COMPONENT_STATE_"),
 );
