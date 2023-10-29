@@ -37,6 +37,12 @@ macro_rules! alist_get_as {
     }};
 }
 
+macro_rules! alist_get_f32 {
+    ($ctx: expr, $rest:expr, $key:expr) => {
+        alist_get_as!($ctx, $rest, $key, as_float).unwrap_or_default() as f32
+    };
+}
+
 fn make_component_from_alist(
     ctx: &mut TulispContext,
     alist: &TulispObject,
@@ -136,56 +142,58 @@ impl Config {
 fn add_functions(ctx: &mut TulispContext) {
     #[tulisp_fn(add_func = "ctx", name = "battery-data")]
     fn battery_data(ctx: &mut TulispContext, alist: TulispObject) -> Result<Rc<dyn Any>, Error> {
+        let capacity = alist_get_f32!(ctx, &alist, "capacity");
+
+        let soc_avg = alist_get_f32!(ctx, &alist, "soc");
+        let soc_lower = alist_get_f32!(ctx, &alist, "soc-lower");
+        let soc_upper = alist_get_f32!(ctx, &alist, "soc-upper");
+
+        let voltage = alist_get_f32!(ctx, &alist, "voltage");
+        let current = alist_get_f32!(ctx, &alist, "current");
+        let power = alist_get_f32!(ctx, &alist, "power");
+
+        let inclusion_lower = alist_get_f32!(ctx, &alist, "inclusion-lower");
+        let inclusion_upper = alist_get_f32!(ctx, &alist, "inclusion-upper");
+        let exclusion_lower = alist_get_f32!(ctx, &alist, "exclusion-lower");
+        let exclusion_upper = alist_get_f32!(ctx, &alist, "exclusion-upper");
+
         return Ok(Rc::new(ComponentData {
             ts: Some(Timestamp::from(std::time::SystemTime::now())),
             id: 0,
             data: Some(component_data::Data::Battery(battery::Battery {
                 properties: Some(battery::Properties {
-                    capacity: alist_get_as!(ctx, &alist, "capacity", as_float).unwrap() as f32,
+                    capacity,
                     ..Default::default()
                 }),
                 state: None,
                 errors: vec![],
                 data: Some(battery::Data {
                     soc: Some(MetricAggregation {
-                        avg: alist_get_as!(ctx, &alist, "soc", as_float).unwrap_or_default() as f32,
+                        avg: soc_avg,
                         system_inclusion_bounds: Some(Bounds {
-                            lower: alist_get_as!(ctx, &alist, "soc-lower", as_float)
-                                .unwrap_or_default() as f32,
-                            upper: alist_get_as!(ctx, &alist, "soc-upper", as_float)
-                                .unwrap_or_default() as f32,
+                            lower: soc_lower,
+                            upper: soc_upper,
                         }),
                         ..Default::default()
                     }),
                     dc: Some(Dc {
                         voltage: Some(Metric {
-                            value: alist_get_as!(ctx, &alist, "voltage", as_float)
-                                .unwrap_or_default() as f32,
+                            value: voltage,
                             ..Default::default()
                         }),
                         current: Some(Metric {
-                            value: alist_get_as!(ctx, &alist, "current", as_float)
-                                .unwrap_or_default() as f32,
+                            value: current,
                             ..Default::default()
                         }),
                         power: Some(Metric {
-                            value: alist_get_as!(ctx, &alist, "power", as_float).unwrap_or_default()
-                                as f32,
+                            value: power,
                             system_inclusion_bounds: Some(Bounds {
-                                lower: alist_get_as!(ctx, &alist, "inclusion-lower", as_float)
-                                    .unwrap_or_default()
-                                    as f32,
-                                upper: alist_get_as!(ctx, &alist, "inclusion-upper", as_float)
-                                    .unwrap_or_default()
-                                    as f32,
+                                lower: inclusion_lower,
+                                upper: inclusion_upper,
                             }),
                             system_exclusion_bounds: Some(Bounds {
-                                lower: alist_get_as!(ctx, &alist, "exclusion-lower", as_float)
-                                    .unwrap_or_default()
-                                    as f32,
-                                upper: alist_get_as!(ctx, &alist, "exclusion-upper", as_float)
-                                    .unwrap_or_default()
-                                    as f32,
+                                lower: exclusion_lower,
+                                upper: exclusion_upper,
                             }),
                             ..Default::default()
                         }),
