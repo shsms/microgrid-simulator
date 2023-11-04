@@ -407,4 +407,32 @@ fn add_functions(ctx: &mut TulispContext) {
             })),
         }));
     }
+
+    #[tulisp_fn(add_func = "ctx", name = "ev-charger-data")]
+    fn ev_charger_data(ctx: &mut TulispContext, alist: TulispObject) -> Result<Rc<dyn Any>, Error> {
+        let id = alist_get_as!(ctx, &alist, "id", as_int)? as u64;
+
+        let component_state =
+            enum_from_alist::<ev_charger::ComponentState>(ctx, &alist, "component-state")
+                .unwrap_or_default() as i32;
+
+        let cable_state = enum_from_alist::<ev_charger::CableState>(ctx, &alist, "cable-state")
+            .unwrap_or_default() as i32;
+
+        return Ok(Rc::new(ComponentData {
+            ts: Some(Timestamp::from(std::time::SystemTime::now())),
+            id,
+            data: Some(component_data::Data::EvCharger(ev_charger::EvCharger {
+                state: Some(ev_charger::State {
+                    component_state,
+                    cable_state,
+                }),
+                data: Some(ev_charger::Data {
+                    ac: Some(ac_from_alist(ctx, &alist)?),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            })),
+        }));
+    }
 }
