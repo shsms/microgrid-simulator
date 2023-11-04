@@ -39,6 +39,14 @@ impl Microgrid for MicrogridServer {
         Ok(tonic::Response::new(connections))
     }
 
+    async fn set_power_active(
+        &self,
+        _request: tonic::Request<SetPowerActiveParam>,
+    ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
+        println!("set_power_active: {:?}", _request.into_inner());
+        Ok(tonic::Response::new(()))
+    }
+
     type StreamComponentDataStream =
         Pin<Box<dyn Stream<Item = Result<ComponentData, tonic::Status>> + Send>>;
 
@@ -76,18 +84,17 @@ impl Microgrid for MicrogridServer {
         ))
     }
 
+    //
+    //
+    // Unused methods
+    //
+    //
     async fn can_stream_data(
         &self,
         _request: tonic::Request<ComponentIdParam>,
     ) -> std::result::Result<tonic::Response<bool>, tonic::Status> {
         todo!()
     }
-
-    //
-    //
-    // Unused methods
-    //
-    //
     async fn add_exclusion_bounds(
         &self,
         _request: tonic::Request<SetBoundsParam>,
@@ -98,12 +105,6 @@ impl Microgrid for MicrogridServer {
         &self,
         _request: tonic::Request<SetBoundsParam>,
     ) -> std::result::Result<tonic::Response<::prost_types::Timestamp>, tonic::Status> {
-        todo!()
-    }
-    async fn set_power_active(
-        &self,
-        _request: tonic::Request<SetPowerActiveParam>,
-    ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         todo!()
     }
     async fn set_power_reactive(
