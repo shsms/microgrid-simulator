@@ -112,7 +112,12 @@ impl Config {
     pub fn new(filename: &str) -> Self {
         let mut ctx = tulisp::TulispContext::new();
         add_functions(&mut ctx);
-        ctx.eval_file(filename).unwrap();
+
+        let _ = ctx.eval_file(filename).map_err(|e| {
+            println!("Tulisp error:\n{}", e.format(&ctx));
+            e
+        });
+
         Self {
             filename: filename.to_string(),
             ctx: Rc::new(RefCell::new(ctx)),
@@ -123,8 +128,18 @@ impl Config {
     pub fn reload(&self) {
         let mut ctx = tulisp::TulispContext::new();
         add_functions(&mut ctx);
-        ctx.eval_file(&self.filename).unwrap();
+        if ctx
+            .eval_file(&self.filename)
+            .map_err(|e| {
+                println!("Tulisp error:\n{}", e.format(&ctx));
+                e
+            })
+            .is_err()
+        {
+            return;
+        }
 
+        println!("Reloaded config file");
         *self.ctx.borrow_mut() = ctx;
         *self.stream_methods.borrow_mut() = HashMap::new();
     }
@@ -149,11 +164,21 @@ impl Config {
     }
 
     pub fn socket_addr(&self) -> String {
-        self.ctx
+        if let Ok(vv) = self
+            .ctx
             .borrow_mut()
             .eval_string("socket-addr")
             .and_then(|x| x.as_string())
-            .unwrap()
+        {
+            vv
+        } else {
+            panic!(
+                r#"
+Invalid socket-addr.  Add a config line in this format:
+	(setq socket-addr "[::1]:8080")
+"#
+            )
+        }
     }
 
     pub fn components(&self) -> Result<ComponentList, Error> {
