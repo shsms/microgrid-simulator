@@ -164,25 +164,30 @@ impl Config {
     }
 
     pub fn socket_addr(&self) -> String {
-        if let Ok(vv) = self
+        let addr = self
             .ctx
             .borrow_mut()
-            .eval_string("socket-addr")
-            .and_then(|x| x.as_string())
-        {
-            vv
-        } else {
-            panic!(
-                r#"
+            .intern("socket-addr")
+            .get()
+            .and_then(|x| x.as_string());
+
+        match addr {
+            Ok(vv) => vv,
+            Err(err) => {
+                panic!(
+                    r#"{}
+
 Invalid socket-addr.  Add a config line in this format:
 	(setq socket-addr "[::1]:8080")
-"#
-            )
+"#,
+                    err.format(&self.ctx.borrow())
+                )
+            }
         }
     }
 
     pub fn components(&self) -> Result<ComponentList, Error> {
-        let alists = self.ctx.borrow_mut().eval_string("components-alist")?;
+        let alists = self.ctx.borrow_mut().intern("components-alist").get()?;
         Ok(ComponentList {
             components: alists
                 .base_iter()
@@ -192,7 +197,7 @@ Invalid socket-addr.  Add a config line in this format:
     }
 
     pub fn connections(&self) -> Result<ConnectionList, Error> {
-        let alist = self.ctx.borrow_mut().eval_string("connections-alist")?;
+        let alist = self.ctx.borrow_mut().intern("connections-alist").get()?;
         Ok(ConnectionList {
             connections: alist
                 .base_iter()
@@ -212,7 +217,7 @@ Invalid socket-addr.  Add a config line in this format:
         {
             (data_method.clone(), *interval)
         } else {
-            let alists = self.ctx.borrow_mut().eval_string("components-alist")?;
+            let alists = self.ctx.borrow_mut().intern("components-alist").get()?;
             let comp = alists
                 .base_iter()
                 .find(|x| {
@@ -323,7 +328,8 @@ fn add_functions(ctx: &mut TulispContext) {
 
     fn ac_from_alist(ctx: &mut TulispContext, alist: &TulispObject) -> Result<Ac, Error> {
         let frequency = ctx
-            .eval_string("ac-frequency")
+            .intern("ac-frequency")
+            .get()
             .and_then(|x| x.as_float())
             .unwrap_or_default() as f32;
         let current = alist_get_3_phase!(ctx, &alist, "current");
