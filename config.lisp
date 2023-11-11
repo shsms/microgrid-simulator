@@ -43,14 +43,14 @@
                            (power . -40000.0)
                            (current . (10.0 21.2 10.5))
                            (soc . 90.0)))
-          ,(make-inv-bat '((name . "inv_bat_1")
-                           (no-meter . nil)
-                           (power . -10000.0)
-                           (current . (2.0 10.2 2.5))
-                           (soc . 90.0)))
-          ,(make-meter '((name . "consumer")
-                         (power . 45000.0)
-                         (current . (10.0 11.2 10.5))))
+           ,(make-inv-bat '((name . "inv_bat_1")
+                            (no-meter . nil)
+                            (power . -10000.0)
+                            (current . (2.0 10.2 2.5))
+                            (soc . 90.0)))
+           ,(make-meter '((name . "consumer")
+                          (power . 45000.0)
+                          (current . (10.0 11.2 10.5))))
            ,(make-meter
              (list '(name . "ev-meter")
                    `(successors ,(make-ev-charger '((name . "ev-charger-0")
@@ -60,8 +60,8 @@
                                                     (cable-state . ev_locked)
                                                     (current . (2.0 1.2 2.5))))
                                 ,(make-ev-charger '((name . "ev-charger-1")
-                                                     (power . 10000.0)
-                                                     (current . (2.0 1.2 2.5)))))))))))
+                                                    (power . 10000.0)
+                                                    (current . (2.0 1.2 2.5)))))))))))
 
 ;; (make-grid
 ;;  (list

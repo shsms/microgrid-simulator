@@ -75,7 +75,7 @@
                                 ,@alist))))
       (if (alist-get 'no-meter alist)
           inv
-        (make-meter (cons (cons 'successors (list inv)) alist))))))
+          (make-meter (cons (cons 'successors (list inv)) alist))))))
 
 
 (defun make-inv-pv (alist)
@@ -95,7 +95,7 @@
                               ,@alist))))
     (if (alist-get 'no-meter alist)
         inv
-      (make-meter (cons (cons 'successors (list inv)) alist)))))
+        (make-meter (cons (cons 'successors (list inv)) alist)))))
 
 
 (defmacro meter-data-maker (alist)
@@ -131,18 +131,18 @@
     meter))
 
 (defmacro inverter-data-maker (alist)
-        (let ((args-alist))
-        (dolist (key '(id power current voltage component-state
-                       inclusion-lower inclusion-upper))
+  (let ((args-alist))
+    (dolist (key '(id power current voltage component-state
+                   inclusion-lower inclusion-upper))
 
-        (let ((val (alist-get key alist)))
-                (if val
-                (setq args-alist (cons (cons key val) args-alist)))))
+      (let ((val (alist-get key alist)))
+        (if val
+            (setq args-alist (cons (cons key val) args-alist)))))
 
-        (let ((res (list 'lambda '(_) `(inverter-data
-                                        (quote ,args-alist)
-                                        ))))
-          res)))
+    (let ((res (list 'lambda '(_) `(inverter-data
+                               (quote ,args-alist)
+                               ))))
+      res)))
 
 
 (defun make-inverter (alist)
@@ -166,19 +166,19 @@
 
 
 (defmacro ev-charger-data-maker (alist)
-        (let ((args-alist))
-          (dolist (key '(id power current voltage component-state cable-state
-                         inclusion-lower inclusion-upper
-                         exclusion-lower exclusion-upper))
+  (let ((args-alist))
+    (dolist (key '(id power current voltage component-state cable-state
+                   inclusion-lower inclusion-upper
+                   exclusion-lower exclusion-upper))
 
-        (let ((val (alist-get key alist)))
-                (if val
-                (setq args-alist (cons (cons key val) args-alist)))))
+      (let ((val (alist-get key alist)))
+        (if val
+            (setq args-alist (cons (cons key val) args-alist)))))
 
-        (let ((res (list 'lambda '(_) `(ev-charger-data
-                                        (quote ,args-alist)
-                                        ))))
-        res)))
+    (let ((res (list 'lambda '(_) `(ev-charger-data
+                               (quote ,args-alist)
+                               ))))
+      res)))
 
 
 (defun make-ev-charger (alist)
@@ -201,21 +201,21 @@
 
 
 (defmacro battery-data-maker (alist)
-        (let ((args-alist))
-          (dolist (key '(id soc soc-upper soc-lower
-                         capacity power voltage type
-                         component-state relay-state
-                         inclusion-lower inclusion-upper
-                         exclusion-lower exclusion-upper))
+  (let ((args-alist))
+    (dolist (key '(id soc soc-upper soc-lower
+                   capacity power voltage type
+                   component-state relay-state
+                   inclusion-lower inclusion-upper
+                   exclusion-lower exclusion-upper))
 
-        (let ((val (alist-get key alist)))
-                (if val
-                (setq args-alist (cons (cons key val) args-alist)))))
+      (let ((val (alist-get key alist)))
+        (if val
+            (setq args-alist (cons (cons key val) args-alist)))))
 
-        (let ((res (list 'lambda '(_) `(battery-data
-                                        (quote ,args-alist)
-                                        ))))
-        res)))
+    (let ((res (list 'lambda '(_) `(battery-data
+                               (quote ,args-alist)
+                               ))))
+      res)))
 
 
 (defun make-battery (alist)
