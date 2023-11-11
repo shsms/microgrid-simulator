@@ -121,11 +121,11 @@
                  (current . ,(get-current alist))
                  (stream . ,(list (cons 'interval meter-interval)
                                   (cons 'data (eval `(meter-data-maker
-                                                      ,(cons 'id id)
-                                                      (power . ,(get-power alist))
-                                                      (current . ,(get-current alist))
-                                                      ,@alist
-                                                      ,@meter-defaults))))))))
+                                                      (,(cons 'id id)
+                                                        (power . ,(get-power alist))
+                                                        (current . ,(get-current alist))
+                                                        ,@alist
+                                                        ,@meter-defaults)))))))))
     (setup-connections id alist)
     (add-to-components-alist meter)
     meter))
@@ -155,11 +155,11 @@
                     (current . ,(get-current alist))
                     (stream . ,(list (cons 'interval inverter-interval)
                                      (cons 'data (eval `(inverter-data-maker
-                                                         ,(cons 'id id)
-                                                         (power . ,(get-power alist))
-                                                         (current . ,(get-current alist))
-                                                         ,@alist
-                                                         ,@inverter-defaults))))))))
+                                                         (,(cons 'id id)
+                                                           (power . ,(get-power alist))
+                                                           (current . ,(get-current alist))
+                                                           ,@alist
+                                                           ,@inverter-defaults)))))))))
     (setup-connections id alist)
     (add-to-components-alist inverter)
     inverter))
@@ -190,11 +190,11 @@
                       (current . ,(get-current alist))
                       (stream . ,(list (cons 'interval ev-charger-interval)
                                        (cons 'data (eval `(ev-charger-data-maker
-                                                           ,(cons 'id id)
-                                                           (power . ,(get-power alist))
-                                                           (current . ,(get-current alist))
-                                                           ,@alist
-                                                           ,@ev-charger-defaults))))))))
+                                                           (,(cons 'id id)
+                                                             (power . ,(get-power alist))
+                                                             (current . ,(get-current alist))
+                                                             ,@alist
+                                                             ,@ev-charger-defaults)))))))))
     (setup-connections id alist)
     (add-to-components-alist ev-charger)
     ev-charger))
@@ -227,11 +227,11 @@
                    (current . ,(get-current alist))
                    (stream . ,(list (cons 'interval battery-interval)
                                     (cons 'data (eval `(battery-data-maker
-                                                        ,(cons 'id id)
-                                                        (power . ,(get-power alist))
-                                                        (current . ,(get-current alist))
-                                                        ,@alist
-                                                        ,@battery-defaults))))))))
+                                                        (,(cons 'id id)
+                                                          (power . ,(get-power alist))
+                                                          (current . ,(get-current alist))
+                                                          ,@alist
+                                                          ,@battery-defaults)))))))))
     (setup-connections id alist)
     (add-to-components-alist battery)
     battery))
