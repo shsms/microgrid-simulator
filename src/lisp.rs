@@ -140,8 +140,7 @@ impl Config {
 
     pub fn reload(&self) {
         let start = std::time::Instant::now();
-        let mut ctx = tulisp::TulispContext::new();
-        add_functions(&mut ctx);
+        let mut ctx = self.ctx.borrow_mut();
         if ctx
             .eval_file(&self.filename)
             .map_err(|e| {
@@ -157,7 +156,6 @@ impl Config {
             "Reloaded config file in {}ms",
             duration.as_nanos() as f64 / 1e6
         );
-        *self.ctx.borrow_mut() = ctx;
         *self.stream_methods.borrow_mut() = HashMap::new();
     }
 
