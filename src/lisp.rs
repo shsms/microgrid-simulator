@@ -15,7 +15,7 @@ use crate::proto::{
 };
 use prost_types::Timestamp;
 use tokio_stream::StreamExt;
-use tulisp::{list, tulisp_fn, Error, TulispContext, TulispObject};
+use tulisp::{list, tulisp_fn_no_eval, Error, TulispContext, TulispObject};
 
 #[derive(Default, Clone)]
 pub struct Config {
@@ -36,6 +36,10 @@ macro_rules! alist_get_as {
     ($ctx: expr, $rest:expr, $key:expr, $as_fn:ident) => {{
         alist_get_as!($ctx, $rest, $key).and_then(|x| x.$as_fn())
     }};
+    ($ctx: expr, $rest:expr, $key:expr, eval++$as_fn:ident) => {{
+        let out = alist_get_as!($ctx, $rest, $key);
+        out.and_then(|x| $ctx.eval_and_then(&x, |x| x.$as_fn()))
+    }};
     ($ctx: expr, $rest:expr, $key:expr) => {{
         let key = $ctx.intern($key);
         tulisp::lists::alist_get($ctx, &key, $rest, None, None, None)
@@ -44,7 +48,7 @@ macro_rules! alist_get_as {
 
 macro_rules! alist_get_f32 {
     ($ctx: expr, $rest:expr, $key:expr) => {
-        alist_get_as!($ctx, $rest, $key, as_float).unwrap_or_default() as f32
+        alist_get_as!($ctx, $rest, $key, eval ++ as_float).unwrap_or_default() as f32
     };
 }
 
@@ -52,9 +56,18 @@ macro_rules! alist_get_3_phase {
     ($ctx: expr, $rest:expr, $key:expr) => {{
         let items = alist_get_as!($ctx, $rest, $key).unwrap_or_default();
         (
-            items.car().and_then(|x| x.as_float()).unwrap_or_default() as f32,
-            items.cadr().and_then(|x| x.as_float()).unwrap_or_default() as f32,
-            items.caddr().and_then(|x| x.as_float()).unwrap_or_default() as f32,
+            items
+                .car()
+                .and_then(|x| $ctx.eval_and_then(&x, |x| x.as_float()))
+                .unwrap_or_default() as f32,
+            items
+                .cadr()
+                .and_then(|x| $ctx.eval_and_then(&x, |x| x.as_float()))
+                .unwrap_or_default() as f32,
+            items
+                .caddr()
+                .and_then(|x| $ctx.eval_and_then(&x, |x| x.as_float()))
+                .unwrap_or_default() as f32,
         )
     }};
 }
@@ -261,9 +274,9 @@ Invalid socket-addr.  Add a config line in this format:
 }
 
 fn add_functions(ctx: &mut TulispContext) {
-    #[tulisp_fn(add_func = "ctx", name = "battery-data")]
+    #[tulisp_fn_no_eval(add_func = "ctx", name = "battery-data")]
     fn battery_data(ctx: &mut TulispContext, alist: TulispObject) -> Result<Rc<dyn Any>, Error> {
-        let id = alist_get_as!(ctx, &alist, "id", as_int)? as u64;
+        let id = alist_get_as!(ctx, &alist, "id", eval ++ as_int)? as u64;
         let capacity = alist_get_f32!(ctx, &alist, "capacity");
 
         let soc_avg = alist_get_f32!(ctx, &alist, "soc");
@@ -410,9 +423,9 @@ fn add_functions(ctx: &mut TulispContext) {
         })
     }
 
-    #[tulisp_fn(add_func = "ctx", name = "inverter-data")]
+    #[tulisp_fn_no_eval(add_func = "ctx", name = "inverter-data")]
     fn inverter_data(ctx: &mut TulispContext, alist: TulispObject) -> Result<Rc<dyn Any>, Error> {
-        let id = alist_get_as!(ctx, &alist, "id", as_int)? as u64;
+        let id = alist_get_as!(ctx, &alist, "id", eval ++ as_int)? as u64;
 
         let component_state =
             enum_from_alist::<inverter::ComponentState>(ctx, &alist, "component-state")
@@ -432,9 +445,9 @@ fn add_functions(ctx: &mut TulispContext) {
         }));
     }
 
-    #[tulisp_fn(add_func = "ctx", name = "meter-data")]
+    #[tulisp_fn_no_eval(add_func = "ctx", name = "meter-data")]
     fn meter_data(ctx: &mut TulispContext, alist: TulispObject) -> Result<Rc<dyn Any>, Error> {
-        let id = alist_get_as!(ctx, &alist, "id", as_int)? as u64;
+        let id = alist_get_as!(ctx, &alist, "id", eval ++ as_int)? as u64;
 
         return Ok(Rc::new(ComponentData {
             ts: Some(Timestamp::from(std::time::SystemTime::now())),
@@ -449,9 +462,9 @@ fn add_functions(ctx: &mut TulispContext) {
         }));
     }
 
-    #[tulisp_fn(add_func = "ctx", name = "ev-charger-data")]
+    #[tulisp_fn_no_eval(add_func = "ctx", name = "ev-charger-data")]
     fn ev_charger_data(ctx: &mut TulispContext, alist: TulispObject) -> Result<Rc<dyn Any>, Error> {
-        let id = alist_get_as!(ctx, &alist, "id", as_int)? as u64;
+        let id = alist_get_as!(ctx, &alist, "id", eval ++ as_int)? as u64;
 
         let component_state =
             enum_from_alist::<ev_charger::ComponentState>(ctx, &alist, "component-state")
