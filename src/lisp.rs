@@ -21,7 +21,7 @@ use tulisp::{list, tulisp_fn_no_eval, Error, TulispContext, TulispObject};
 pub struct Config {
     filename: String,
 
-    ctx: Rc<RefCell<tulisp::TulispContext>>,
+    pub(crate) ctx: Rc<RefCell<tulisp::TulispContext>>,
 
     /// Component ID -> (ComponentData Method, Interval)
     stream_methods: Rc<RefCell<HashMap<u64, (TulispObject, u64)>>>,

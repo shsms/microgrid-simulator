@@ -69,7 +69,13 @@ impl Microgrid for MicrogridServer {
         tokio::spawn(async move {
             let mut last_msg_ts = SystemTime::now();
             loop {
-                let (data, interval) = config.get_component_data(id as u64).unwrap();
+                let (data, interval) = config
+                    .get_component_data(id as u64)
+                    .map_err(|e| {
+                        println!("Tulisp error:\n{}", e.format(&config.ctx.borrow()));
+                        e
+                    })
+                    .unwrap();
 
                 if let Err(err) = tx.send(Result::<_, tonic::Status>::Ok(data)).await {
                     println!("stream_component_data(component_id={id}): {err}");
