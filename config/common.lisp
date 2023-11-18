@@ -3,6 +3,10 @@
 (setq comp--id--counter 1000)
 
 
+(defun power-symbol-from-id (id)
+  (intern (format "component-power-%s" id)))
+
+
 (defun add-to-connections-alist (id-from id-to)
   (if (not (boundp 'connections-alist))
       (setq connections-alist nil))
@@ -18,8 +22,8 @@
 
 
 (defun set-power-active (id power)
-  (let* ((power-symbol (intern (format "component-power-%s" id)))
-        (original-value (eval power-symbol)))
+  (let* ((power-symbol (power-symbol-from-id id))
+         (original-value (eval power-symbol)))
     (eval `(setq ,power-symbol power))
     (print (format "set %s from %s to %s"
                    power-symbol

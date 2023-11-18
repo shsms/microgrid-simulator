@@ -2,8 +2,8 @@
   (let* ((no-meter (plist-get plist :no-meter))
          (inv-id (get-comp-id))
          (bat-id (get-comp-id))
-         (inv-power-symbol (intern (format "component-power-%s" inv-id)))
-         (bat-power-symbol (intern (format "component-power-%s" bat-id)))
+         (inv-power-symbol (power-symbol-from-id inv-id))
+         (bat-power-symbol (power-symbol-from-id bat-id))
          (inv-power-expr inv-power-symbol)
          (bat-power-expr `(setq
                            ,bat-power-symbol
@@ -20,7 +20,7 @@
     (if no-meter
         inverter
       (let* ((meter-id (get-comp-id))
-             (meter-power-symbol (intern (format "component-power-%s" meter-id)))
+             (meter-power-symbol (power-symbol-from-id meter-id))
              (meter-power-expr `(setq
                                  ,meter-power-symbol
                                  ,inv-power-expr))
