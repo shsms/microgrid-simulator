@@ -210,6 +210,16 @@ Invalid socket-addr.  Add a config line in this format:
         })
     }
 
+    pub fn set_power_active(&self, component_id: u64, power: f32) -> Result<(), Error> {
+        let func = self.ctx.borrow_mut().intern("set-power-active");
+        self.ctx.borrow_mut().funcall(
+            &func,
+            &list![(component_id as i64).into(), (power as f64).into()]?,
+        )?;
+
+        Ok(())
+    }
+
     pub fn get_component_data(&self, component_id: u64) -> Result<(ComponentData, u64), Error> {
         let mut stream_methods = self.stream_methods.borrow_mut();
         let (data_method, interval) = if let Some((data_method, interval)) =
