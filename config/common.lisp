@@ -1,6 +1,13 @@
+;; Reset variables to their initial state everytime the script is
+;; reloaded, so that the same components and connections are not added
+;; multiple times.
+(setq comp--id--counter 1000)
+(setq connections-alist nil)
+(setq components-alist nil)
+
+
 (defun get-comp-id ()
   (setq comp--id--counter (+ comp--id--counter 1)))
-(setq comp--id--counter 1000)
 
 
 (defun power-symbol-from-id (id)
@@ -8,15 +15,11 @@
 
 
 (defun add-to-connections-alist (id-from id-to)
-  (if (not (boundp 'connections-alist))
-      (setq connections-alist nil))
   (setq connections-alist (cons (cons id-from id-to)
                                 connections-alist)))
 
 
 (defun add-to-components-alist (alist)
-  (if (not (boundp 'components-alist))
-      (setq components-alist nil))
   (setq components-alist (cons alist
                                components-alist)))
 
