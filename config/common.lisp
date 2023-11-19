@@ -21,6 +21,12 @@
                                components-alist)))
 
 
+(defun connect-components (alist-from alist-to)
+  (let ((id-from (alist-get 'id alist-from))
+        (id-to (alist-get 'id alist-to)))
+    (add-to-connections-alist id-from id-to)))
+
+
 (defun set-power-active (id power)
   (let* ((power-symbol (power-symbol-from-id id))
          (original-value (eval power-symbol)))

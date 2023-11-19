@@ -110,3 +110,16 @@
                                         meter-defaults)))))))
     (add-to-components-alist meter)
     meter))
+
+
+;;;;;;;;;;
+;; Grid ;;
+;;;;;;;;;;
+
+(defun make-grid (&rest plist)
+  (let ((grid
+         `((category . grid)
+           (id       . ,(or (plist-get plist :id) (get-comp-id)))
+           (name     . "grid"))))
+    (add-to-components-alist grid)
+    grid))
