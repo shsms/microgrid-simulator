@@ -1,4 +1,4 @@
-use std::{any::Any, cell::RefCell, collections::HashMap, rc::Rc, str::FromStr};
+use std::{any::Any, cell::RefCell, collections::HashMap, rc::Rc, str::FromStr, time::Duration};
 
 use crate::proto::{
     common::{
@@ -199,6 +199,18 @@ Invalid socket-addr.  Add a config line in this format:
                 )
             }
         }
+    }
+
+    pub fn retain_requests_duration(&self) -> Duration {
+        let dur_ms = self
+            .ctx
+            .borrow_mut()
+            .intern("retain-requests-duration-ms")
+            .get()
+            .and_then(|x| x.as_int())
+            .unwrap_or(5000);
+
+        Duration::from_millis(dur_ms as u64)
     }
 
     pub fn components(&self) -> Result<ComponentList, Error> {
