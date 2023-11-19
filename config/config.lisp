@@ -41,6 +41,7 @@
                             (inclusion-lower . 0.0)
                             (inclusion-upper . ,(* 16.0 230.0)))) ; 16A
 
-(let* ((bat-1 (make-inv-bat))
+
+(let* ((bat-1 (make-inv-bat-chain))
        (grid (make-grid :id 1)))
   (connect-components grid bat-1))

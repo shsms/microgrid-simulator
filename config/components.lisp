@@ -1,5 +1,9 @@
-(defun make-inv-bat (&rest plist)
+(defun make-inv-bat-chain (&rest plist)
   (let* ((no-meter (plist-get plist :no-meter))
+         (bat-config (plist-get plist :bat-config))
+         (inv-config (plist-get plist :inv-config))
+         (starting-power (or (plist-get plist :starting-power) 0.0))
+
          (inv-id (get-comp-id))
          (bat-id (get-comp-id))
          (inv-power-symbol (power-symbol-from-id inv-id))
@@ -9,13 +13,14 @@
                            ,bat-power-symbol
                            ,inv-power-expr))
          (battery (make-battery :id bat-id
-                                :power bat-power-expr))
+                                :power bat-power-expr
+                                :config bat-config))
          (inverter (make-battery-inverter :id inv-id
-                                          :power inv-power-expr)))
+                                          :power inv-power-expr
+                                          :config inv-config)))
 
     (when (not (boundp inv-power-symbol))
-      (eval `(setq ,inv-power-symbol 0.0))
-      (eval `(setq ,bat-power-symbol 0.0)))
+      (eval `(setq ,inv-power-symbol starting-power)))
 
     (add-to-connections-alist inv-id bat-id)
 
