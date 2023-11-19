@@ -67,7 +67,8 @@
                                         `((id    . ,id)
                                           ,@(when soc
                                               `((soc . ,soc)))
-                                          (power . ,power)
+                                          ,@(when power
+                                              `((power . ,power)))
                                           ,@config)
                                         battery-defaults)))))))
     (add-to-components-alist battery)
@@ -99,7 +100,8 @@
                          `(interval . ,interval)
                          `(data     . ,(inverter-data-maker
                                         `((id . ,id)
-                                          (power . ,power)
+                                          ,@(when power
+                                              `((power . ,power)))
                                           ,@config)
                                         inverter-defaults)))))))
     (add-to-components-alist inverter)
@@ -131,7 +133,8 @@
                           `(interval . ,interval)
                           `(data     . ,(meter-data-maker
                                          `((id    . ,id)
-                                           (power . ,power)
+                                           ,@(when power
+                                               `((power . ,power)))
                                            ,@config)
                                          meter-defaults)))))))
     (add-to-components-alist meter)
