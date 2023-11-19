@@ -30,6 +30,21 @@
     (add-to-connections-alist id-from id-to)))
 
 
+(defun connect-successors (id successors)
+  (dolist (successor successors)
+    (add-to-connections-alist id (alist-get 'id successor))))
+
+
+(defun power-expr-from-successors (successors)
+  (let ((expr ()))
+    (dolist (successor successors)
+      (if-let ((power (alist-get 'power successor)))
+        (setq expr (cons power expr))))
+    (if expr
+        `((power . ,(cons '+ expr)))
+      nil)))
+
+
 (defun set-power-active (id power)
   (let* ((power-symbol (power-symbol-from-id id))
          (original-value (eval power-symbol)))

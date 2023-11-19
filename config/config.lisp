@@ -42,6 +42,13 @@
                             (voltage         . ,ac-voltage)))
 
 
-(let* ((bat-1 (make-inv-bat-chain))
-       (grid (make-grid :id 1)))
-  (connect-components grid bat-1))
+(make-grid
+ :id 1
+ :successors (list
+              (make-meter
+               :id 2
+               :successors (list
+                            (make-inv-bat-chain
+                             :bat-config '((soc . 10)))
+                            (make-inv-bat-chain
+                             :no-meter t)))))

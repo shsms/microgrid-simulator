@@ -27,12 +27,8 @@
     (if no-meter
         inverter
       (let* ((meter-id (get-comp-id))
-             (meter-power-symbol (power-symbol-from-id meter-id))
-             (meter-power-expr `(setq
-                                 ,meter-power-symbol
-                                 ,inv-power-expr))
              (meter (make-meter :id meter-id
-                                :power meter-power-expr)))
+                                :power inv-power-expr)))
         (add-to-connections-alist meter-id inv-id)
         meter))))
 
@@ -59,8 +55,10 @@
         (config (plist-get plist :config))
         (battery
          `((category . battery)
-           (id       . ,id)
            (name     . ,(format "bat-%s" id))
+           (id       . ,id)
+           ,@(when power
+               `((power . ,power)))
            (stream   . ,(list
                          `(interval . ,interval)
                          `(data     . ,(battery-data-maker
@@ -91,11 +89,14 @@
         (interval (or (plist-get plist :interval) inverter-interval))
         (power (plist-get plist :power))
         (config (plist-get plist :config))
+        (successors (plist-get plist :successors))
         (inverter
          `((category . inverter)
            (type     . battery)
-           (id       . ,id)
            (name     . ,(format "inv-bat-%s" id))
+           (id       . ,id)
+           ,@(when power
+               `((power . ,power)))
            (stream   . ,(list
                          `(interval . ,interval)
                          `(data     . ,(inverter-data-maker
@@ -105,6 +106,7 @@
                                           ,@config)
                                         inverter-defaults)))))))
     (add-to-components-alist inverter)
+    (connect-successors id successors)
     inverter))
 
 
@@ -125,19 +127,24 @@
          (interval (or (plist-get plist :interval) meter-interval))
          (power (plist-get plist :power))
          (config (plist-get plist :config))
+         (successors (plist-get plist :successors))
+         (power-expr (if power
+                         `((power . ,power))
+                       (power-expr-from-successors successors)))
          (meter
           `((category . meter)
-            (id       . ,id)
             (name     . ,(format "meter-%s" id))
+            (id       . ,id)
+            ,@power-expr
             (stream   . ,(list
                           `(interval . ,interval)
                           `(data     . ,(meter-data-maker
                                          `((id    . ,id)
-                                           ,@(when power
-                                               `((power . ,power)))
+                                           ,@power-expr
                                            ,@config)
                                          meter-defaults)))))))
     (add-to-components-alist meter)
+    (connect-successors id successors)
     meter))
 
 
@@ -146,9 +153,12 @@
 ;;;;;;;;;;
 
 (defun make-grid (&rest plist)
-  (let ((grid
+  (let ((id (or (plist-get plist :id) (get-comp-id)))
+        (successors (plist-get plist :successors))
+        (grid
          `((category . grid)
-           (id       . ,(or (plist-get plist :id) (get-comp-id)))
+           (id       . ,id)
            (name     . "grid"))))
     (add-to-components-alist grid)
+    (connect-successors id successors)
     grid))
