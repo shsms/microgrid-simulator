@@ -24,7 +24,8 @@
              (meter-power-expr `(setq
                                  ,meter-power-symbol
                                  ,inv-power-expr))
-             (meter (make-meter meter-id meter-power-expr)))
+             (meter (make-meter :id meter-id
+                                :power meter-power-expr)))
         (add-to-connections-alist meter-id inv-id)
         meter))))
 
@@ -97,17 +98,22 @@
 
 
 
-(defun make-meter (id power-expr)
-  (let ((meter
-         `((category . meter)
-           (id       . ,id)
-           (name     . ,(format "meter-%s" id))
-           (stream   . ,(list
-                         `(interval . ,meter-interval)
-                         `(data     . ,(meter-data-maker
-                                        `((id . ,id)
-                                          (power . ,power-expr))
-                                        meter-defaults)))))))
+(defun make-meter (&rest plist)
+  (let* ((id (or (plist-get plist :id) (get-comp-id)))
+         (interval (or (plist-get plist :interval) meter-interval))
+         (power (plist-get plist :power))
+         (config (plist-get plist :config))
+         (meter
+          `((category . meter)
+            (id       . ,id)
+            (name     . ,(format "meter-%s" id))
+            (stream   . ,(list
+                          `(interval . ,interval)
+                          `(data     . ,(meter-data-maker
+                                         `((id    . ,id)
+                                           (power . ,power)
+                                           ,@config)
+                                         meter-defaults)))))))
     (add-to-components-alist meter)
     meter))
 
