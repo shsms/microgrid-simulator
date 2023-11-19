@@ -1,4 +1,4 @@
-use std::{any::Any, cell::RefCell, collections::HashMap, rc::Rc, str::FromStr};
+use std::{any::Any, cell::RefCell, collections::HashMap, rc::Rc, str::FromStr, time::Duration};
 
 use crate::proto::{
     common::{
@@ -15,7 +15,7 @@ use crate::proto::{
 };
 use prost_types::Timestamp;
 use tokio_stream::StreamExt;
-use tulisp::{list, tulisp_fn_no_eval, Error, TulispContext, TulispObject};
+use tulisp::{list, tulisp_fn, tulisp_fn_no_eval, Error, TulispContext, TulispObject};
 
 #[derive(Default, Clone)]
 pub struct Config {
@@ -199,6 +199,18 @@ Invalid socket-addr.  Add a config line in this format:
                 )
             }
         }
+    }
+
+    pub fn retain_requests_duration(&self) -> Duration {
+        let dur_ms = self
+            .ctx
+            .borrow_mut()
+            .intern("retain-requests-duration-ms")
+            .get()
+            .and_then(|x| x.as_int())
+            .unwrap_or(5000);
+
+        Duration::from_millis(dur_ms as u64)
     }
 
     pub fn components(&self) -> Result<ComponentList, Error> {
@@ -490,5 +502,25 @@ fn add_functions(ctx: &mut TulispContext) {
                 ..Default::default()
             })),
         }));
+    }
+
+    #[tulisp_fn(add_func = "ctx", name = "log.info")]
+    fn log_info(msg: String) {
+        log::info!("{}", msg);
+    }
+
+    #[tulisp_fn(add_func = "ctx", name = "log.warn")]
+    fn log_warn(msg: String) {
+        log::warn!("{}", msg);
+    }
+
+    #[tulisp_fn(add_func = "ctx", name = "log.error")]
+    fn log_error(msg: String) {
+        log::error!("{}", msg);
+    }
+
+    #[tulisp_fn(add_func = "ctx", name = "log.debug")]
+    fn log_debug(msg: String) {
+        log::debug!("{}", msg);
     }
 }

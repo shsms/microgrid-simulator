@@ -13,6 +13,33 @@ use crate::proto::microgrid::{
 
 pub struct MicrogridServer {
     pub config: Config,
+    pub timeout_tracker: crate::timeout_tracker::TimeoutTracker,
+}
+
+impl MicrogridServer {
+    pub fn new(config: Config) -> Self {
+        let new = Self {
+            config,
+            timeout_tracker: crate::timeout_tracker::TimeoutTracker::new(),
+        };
+        new.start_timeout_tracker();
+        new
+    }
+
+    fn start_timeout_tracker(&self) {
+        let timeout_tracker = self.timeout_tracker.clone();
+        let config = self.config.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(Duration::from_millis(100)).await;
+                let expired_ids = timeout_tracker.remove_expired(config.retain_requests_duration());
+                for id in expired_ids {
+                    log::info!("Request timeout for component {}. Resetting power to 0", id);
+                    config.set_power_active(id, 0.0).unwrap();
+                }
+            }
+        });
+    }
 }
 
 #[tonic::async_trait]
@@ -44,10 +71,11 @@ impl Microgrid for MicrogridServer {
         _request: tonic::Request<SetPowerActiveParam>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let request = _request.into_inner();
+        self.timeout_tracker.add(request.component_id);
         self.config
             .set_power_active(request.component_id, request.power)
             .map_err(|e| {
-                println!("Tulisp error:\n{}", e.format(&self.config.ctx.borrow()));
+                log::error!("Tulisp error:\n{}", e.format(&self.config.ctx.borrow()));
                 e
             })
             .unwrap();
@@ -72,13 +100,13 @@ impl Microgrid for MicrogridServer {
                 let (data, interval) = config
                     .get_component_data(id as u64)
                     .map_err(|e| {
-                        println!("Tulisp error:\n{}", e.format(&config.ctx.borrow()));
+                        log::error!("Tulisp error:\n{}", e.format(&config.ctx.borrow()));
                         e
                     })
                     .unwrap();
 
                 if let Err(err) = tx.send(Result::<_, tonic::Status>::Ok(data)).await {
-                    println!("stream_component_data(component_id={id}): {err}");
+                    log::debug!("stream_component_data(component_id={id}): {err}");
                     break;
                 }
 
