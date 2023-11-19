@@ -48,7 +48,7 @@ macro_rules! alist_get_as {
 
 macro_rules! alist_get_f32 {
     ($ctx: expr, $rest:expr, $key:expr) => {
-        alist_get_as!($ctx, $rest, $key, eval ++ as_float).unwrap_or_default() as f32
+        alist_get_as!($ctx, $rest, $key, eval ++ try_float).unwrap_or_default() as f32
     };
 }
 
