@@ -43,7 +43,14 @@ impl Microgrid for MicrogridServer {
         &self,
         _request: tonic::Request<SetPowerActiveParam>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
-        println!("set_power_active: {:?}", _request.into_inner());
+        let request = _request.into_inner();
+        self.config
+            .set_power_active(request.component_id, request.power)
+            .map_err(|e| {
+                println!("Tulisp error:\n{}", e.format(&self.config.ctx.borrow()));
+                e
+            })
+            .unwrap();
         Ok(tonic::Response::new(()))
     }
 
@@ -62,7 +69,13 @@ impl Microgrid for MicrogridServer {
         tokio::spawn(async move {
             let mut last_msg_ts = SystemTime::now();
             loop {
-                let (data, interval) = config.get_component_data(id as u64).unwrap();
+                let (data, interval) = config
+                    .get_component_data(id as u64)
+                    .map_err(|e| {
+                        println!("Tulisp error:\n{}", e.format(&config.ctx.borrow()));
+                        e
+                    })
+                    .unwrap();
 
                 if let Err(err) = tx.send(Result::<_, tonic::Status>::Ok(data)).await {
                     println!("stream_component_data(component_id={id}): {err}");

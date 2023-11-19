@@ -1,9 +1,13 @@
-;; Need to restart the server for this to take effect.
-(load "./graph-build-utils.lisp")
+(load "config/common.lisp")
+(load "config/components.lisp")
+
 
 (setq socket-addr "[::1]:8800")
 
+
 (setq ac-frequency 50.0)
+(setq ac-voltage '(230.0 230.0 230.0))
+
 
 (setq battery-interval 500)
 (setq inverter-interval 500)
@@ -11,79 +15,40 @@
 (setq ev-charger-interval 1500)
 
 
-(setq battery-defaults '((soc-lower . 10.0)
-                         (soc-upper . 90.0)
-                         (capacity . 92000.0)
-                         (voltage . 800.0)
+(setq battery-defaults '((soc             . 88.0)
+                         (soc-lower       . 10.0)
+                         (soc-upper       . 90.0)
+                         (capacity        . 92000.0)
+                         (voltage         . 800.0)
                          (inclusion-lower . -30000.0)
                          (inclusion-upper . 30000.0)
                          (component-state . idle)
-                         (relay-state . closed)))
+                         (relay-state     . closed)))
 
-(setq inverter-defaults '((component-state . idle)
-                          (voltage . (230.0 230.0 230.0))
+
+(setq inverter-defaults `((component-state . idle)
                           (inclusion-lower . -30000.0)
                           (inclusion-upper . 30000.0)
-                          ))
+                          (voltage         . ,ac-voltage)))
 
-(setq meter-defaults '((voltage . (230.0 230.0 230.0))))
+
+(setq meter-defaults `((voltage . ,ac-voltage)))
+
 
 (setq ev-charger-defaults `((component-state . ready)
-                            (cable-state . unplugged)
-                            (voltage . (230.0 230.0 230.0))
+                            (cable-state     . unplugged)
                             (inclusion-lower . 0.0)
-                            (inclusion-upper . ,(* 16.0 230.0))
-                            ))
+                            (inclusion-upper . ,(* 16.0 230.0)) ; 16A
+                            (voltage         . ,ac-voltage)))
+
 
 (make-grid
- (list
-  (cons 'successors
-        `(,(make-inv-bat '((name . "inv_bat_0")
-                           (no-meter . t)
-                           (power . -40000.0)
-                           (current . (10.0 21.2 10.5))
-                           (soc . 90.0)))
-           ,(make-inv-bat '((name . "inv_bat_1")
-                            (no-meter . nil)
-                            (power . -10000.0)
-                            (current . (2.0 10.2 2.5))
-                            (soc . 90.0)))
-           ,(make-meter '((name . "consumer")
-                          (power . 45000.0)
-                          (current . (10.0 11.2 10.5))))
-           ,(make-meter
-             (list '(name . "ev-meter")
-                   `(successors ,(make-ev-charger '((name . "ev-charger-0")
-                                                    (id . 25)
-                                                    (power . 2000.0)
-                                                    (component-state . charging)
-                                                    (cable-state . ev_locked)
-                                                    (current . (2.0 1.2 2.5))))
-                                ,(make-ev-charger '((name . "ev-charger-1")
-                                                    (power . 10000.0)
-                                                    (current . (2.0 1.2 2.5)))))))))))
-
-;; (make-grid
-;;  (list
-;;   (cons 'successors
-;;         (list (make-meter
-;;                `((name . "grid-meter")
-;;                  (power . 1000.0)
-;;                  (dont-calculate . t)
-;;                  (successors . (,(make-inv-bat '((name . "inv_bat_0")
-;;                                                  (no-meter . t)
-;;                                                  (power . -40000.0)
-;;                                                  (current . (10.0 11.2 10.5))
-;;                                                  (soc . 80.0)))
-
-;;                                  ,(make-inv-bat '((name . "inv_bat_1")
-;;                                                   (no-meter . nil)
-;;                                                   (power . 10000.0)
-;;                                                   (current . (2.0 1.2 2.5))
-;;                                                   (soc . 80.0)))))))))))
-
-
-
-
-
-
+ :id 1
+ :successors (list
+              (make-meter
+               :id 2
+               :successors (list
+                            (make-inv-bat-chain
+                             :bat-config '((soc . 10)))
+                            (make-inv-bat-chain
+                             :no-meter t)))))
