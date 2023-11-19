@@ -8,8 +8,10 @@
          (bat-power-expr `(setq
                            ,bat-power-symbol
                            ,inv-power-expr))
-         (battery (make-battery bat-id bat-power-expr))
-         (inverter (make-battery-inverter inv-id inv-power-expr)))
+         (battery (make-battery :id bat-id
+                                :power bat-power-expr))
+         (inverter (make-battery-inverter :id inv-id
+                                          :power inv-power-expr)))
 
     (when (not (boundp inv-power-symbol))
       (eval `(setq ,inv-power-symbol 0.0))
@@ -44,16 +46,24 @@
                           inclusion-lower inclusion-upper
                           exclusion-lower exclusion-upper)))
 
-(defun make-battery (id power-expr)
-  (let ((battery
+(defun make-battery (&rest plist)
+  (let ((id (or (plist-get plist :id) (get-comp-id)))
+        (interval (or (plist-get plist :interval) battery-interval))
+        (power (plist-get plist :power))
+        (soc (plist-get plist :soc))
+        (config (plist-get plist :config))
+        (battery
          `((category . battery)
            (id       . ,id)
            (name     . ,(format "bat-%s" id))
            (stream   . ,(list
-                         `(interval . ,battery-interval)
+                         `(interval . ,interval)
                          `(data     . ,(battery-data-maker
                                         `((id    . ,id)
-                                          (power . ,power-expr))
+                                          ,@(when soc
+                                              `((soc . ,soc)))
+                                          (power . ,power)
+                                          ,@config)
                                         battery-defaults)))))))
     (add-to-components-alist battery)
     battery))
@@ -70,17 +80,22 @@
                         '(id power current voltage component-state
                           inclusion-lower inclusion-upper)))
 
-(defun make-battery-inverter (id power-expr)
-  (let ((inverter
+(defun make-battery-inverter (&rest plist)
+  (let ((id (or (plist-get plist :id) (get-comp-id)))
+        (interval (or (plist-get plist :interval) inverter-interval))
+        (power (plist-get plist :power))
+        (config (plist-get plist :config))
+        (inverter
          `((category . inverter)
            (type     . battery)
            (id       . ,id)
            (name     . ,(format "inv-bat-%s" id))
            (stream   . ,(list
-                         `(interval . ,inverter-interval)
+                         `(interval . ,interval)
                          `(data     . ,(inverter-data-maker
                                         `((id . ,id)
-                                          (power . ,power-expr))
+                                          (power . ,power)
+                                          ,@config)
                                         inverter-defaults)))))))
     (add-to-components-alist inverter)
     inverter))
