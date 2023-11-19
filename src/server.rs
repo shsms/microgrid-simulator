@@ -47,7 +47,7 @@ impl Microgrid for MicrogridServer {
         self.config
             .set_power_active(request.component_id, request.power)
             .map_err(|e| {
-                println!("Tulisp error:\n{}", e.format(&self.config.ctx.borrow()));
+                log::error!("Tulisp error:\n{}", e.format(&self.config.ctx.borrow()));
                 e
             })
             .unwrap();
@@ -72,13 +72,13 @@ impl Microgrid for MicrogridServer {
                 let (data, interval) = config
                     .get_component_data(id as u64)
                     .map_err(|e| {
-                        println!("Tulisp error:\n{}", e.format(&config.ctx.borrow()));
+                        log::error!("Tulisp error:\n{}", e.format(&config.ctx.borrow()));
                         e
                     })
                     .unwrap();
 
                 if let Err(err) = tx.send(Result::<_, tonic::Status>::Ok(data)).await {
-                    println!("stream_component_data(component_id={id}): {err}");
+                    log::debug!("stream_component_data(component_id={id}): {err}");
                     break;
                 }
 

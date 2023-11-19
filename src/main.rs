@@ -5,10 +5,13 @@ use tonic::transport::Server;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
+    simplelog::SimpleLogger::init(simplelog::LevelFilter::Trace, simplelog::Config::default())
+        .unwrap();
+
     let config = lisp::Config::new("config.lisp");
     config.start_watching();
     let socket_addr = config.socket_addr();
-    println!("Server listening on {}", socket_addr);
+    log::info!("Server listening on {}", socket_addr);
 
     let server = server::MicrogridServer { config };
     Server::builder()
