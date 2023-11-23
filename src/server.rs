@@ -34,7 +34,7 @@ impl MicrogridServer {
                 tokio::time::sleep(Duration::from_millis(100)).await;
                 let expired_ids = timeout_tracker.remove_expired(config.retain_requests_duration());
                 for id in expired_ids {
-                    log::info!("Request timeout for component {}. Resetting power to 0", id);
+                    log::info!("Request timeout for component {}.", id);
                     config.set_power_active(id, 0.0).unwrap();
                 }
             }

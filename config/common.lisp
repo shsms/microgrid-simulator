@@ -35,14 +35,28 @@
     (add-to-connections-alist id (alist-get 'id successor))))
 
 
-(defun power-expr-from-successors (successors)
+(defun make-power-expr (successors)
   (let ((expr ()))
     (dolist (successor successors)
       (if-let ((power (alist-get 'power successor)))
         (setq expr (cons power expr))))
-    (if expr
-        `((power . ,(cons '+ expr)))
-      nil)))
+    (when expr (cons '+ expr))))
+
+
+(defun make-current-expr (successors)
+  (let ((p1-expr ())
+        (p2-expr ())
+        (p3-expr ()))
+    (dolist (successor successors)
+      (if-let ((current (alist-get 'current successor)))
+        (progn
+          (setq p1-expr (cons `(nth 0 ,current) p1-expr))
+          (setq p2-expr (cons `(nth 1 ,current) p2-expr))
+          (setq p3-expr (cons `(nth 2 ,current) p3-expr)))))
+    (when p1-expr (list 'list
+                        (setq p1-expr (cons '+ p1-expr))
+                        (setq p2-expr (cons '+ p2-expr))
+                        (setq p3-expr (cons '+ p3-expr))))))
 
 
 (defun set-power-active (id power)
@@ -63,3 +77,8 @@
           (setq args-alist (cons (cons key val) args-alist))))
 
     (list 'lambda '(_) `(,method ,args-alist))))
+
+
+(defun ac-current-from-power (power)
+  (let ((per-phase-power (/ power 3)))
+    (mapcar '(lambda (voltage) (/ per-phase-power voltage)) ac-voltage)))

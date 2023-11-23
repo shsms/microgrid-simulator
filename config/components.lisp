@@ -53,20 +53,20 @@
         (power (plist-get plist :power))
         (soc (plist-get plist :soc))
         (config (plist-get plist :config))
+        (power-expr (when power
+                      `((power . ,power))))
         (battery
          `((category . battery)
            (name     . ,(format "bat-%s" id))
            (id       . ,id)
-           ,@(when power
-               `((power . ,power)))
+           ,@power-expr
            (stream   . ,(list
                          `(interval . ,interval)
                          `(data     . ,(battery-data-maker
                                         `((id    . ,id)
                                           ,@(when soc
                                               `((soc . ,soc)))
-                                          ,@(when power
-                                              `((power . ,power)))
+                                          ,@power-expr
                                           ,@config)
                                         battery-defaults)))))))
     (add-to-components-alist battery)
@@ -90,19 +90,20 @@
         (power (plist-get plist :power))
         (config (plist-get plist :config))
         (successors (plist-get plist :successors))
+        (power-expr (when power
+                      `((power . ,power)
+                        (current . (ac-current-from-power ,power)))))
         (inverter
          `((category . inverter)
            (type     . battery)
            (name     . ,(format "inv-bat-%s" id))
            (id       . ,id)
-           ,@(when power
-               `((power . ,power)))
+           ,@power-expr
            (stream   . ,(list
                          `(interval . ,interval)
                          `(data     . ,(inverter-data-maker
                                         `((id . ,id)
-                                          ,@(when power
-                                              `((power . ,power)))
+                                          ,@power-expr
                                           ,@config)
                                         inverter-defaults)))))))
     (add-to-components-alist inverter)
@@ -128,18 +129,25 @@
          (power (plist-get plist :power))
          (config (plist-get plist :config))
          (successors (plist-get plist :successors))
-         (power-expr (if power
-                         `((power . ,power))
-                       (power-expr-from-successors successors)))
+         (current-expr (if-let ((current (if power
+                                             `(ac-current-from-power ,power)
+                                             (make-current-expr successors)
+                                             )))
+                           `((current . ,current))))
+         (power-expr (if-let ((power (or power
+                                         (make-power-expr successors))))
+                         `((power . ,power))))
          (meter
           `((category . meter)
             (name     . ,(format "meter-%s" id))
             (id       . ,id)
+            ,@current-expr
             ,@power-expr
             (stream   . ,(list
                           `(interval . ,interval)
                           `(data     . ,(meter-data-maker
                                          `((id    . ,id)
+                                           ,@current-expr
                                            ,@power-expr
                                            ,@config)
                                          meter-defaults)))))))

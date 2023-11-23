@@ -54,7 +54,12 @@ macro_rules! alist_get_f32 {
 
 macro_rules! alist_get_3_phase {
     ($ctx: expr, $rest:expr, $key:expr) => {{
-        let items = alist_get_as!($ctx, $rest, $key).unwrap_or_default();
+        let expr = alist_get_as!($ctx, $rest, $key).unwrap_or_default();
+        let items = if expr.consp() && expr.car_and_then(|x| Ok(x.numberp()))? {
+            expr
+        } else {
+            $ctx.eval(&expr)?
+        };
         (
             items
                 .car()
@@ -81,7 +86,7 @@ fn enum_from_alist<T: FromStr + Default>(
     match val.parse::<T>() {
         Ok(x) => Some(x),
         Err(_) => {
-            println!("Invalid value for {}: {}", key, val);
+            log::error!("Invalid value for {}: {}", key, val);
             None
         }
     }
@@ -127,7 +132,7 @@ impl Config {
         add_functions(&mut ctx);
 
         let _ = ctx.eval_file(filename).map_err(|e| {
-            println!("Tulisp error:\n{}", e.format(&ctx));
+            log::error!("Tulisp error:\n{}", e.format(&ctx));
             e
         });
 
@@ -144,7 +149,7 @@ impl Config {
         if ctx
             .eval_file(&self.filename)
             .map_err(|e| {
-                println!("Tulisp error:\n{}", e.format(&ctx));
+                log::error!("Tulisp error:\n{}", e.format(&ctx));
                 e
             })
             .is_err()
@@ -152,7 +157,7 @@ impl Config {
             return;
         }
         let duration = start.elapsed();
-        println!(
+        log::info!(
             "Reloaded config file in {}ms",
             duration.as_nanos() as f64 / 1e6
         );
