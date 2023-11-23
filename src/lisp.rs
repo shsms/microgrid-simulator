@@ -81,7 +81,7 @@ fn enum_from_alist<T: FromStr + Default>(
     match val.parse::<T>() {
         Ok(x) => Some(x),
         Err(_) => {
-            println!("Invalid value for {}: {}", key, val);
+            log::error!("Invalid value for {}: {}", key, val);
             None
         }
     }
@@ -127,7 +127,7 @@ impl Config {
         add_functions(&mut ctx);
 
         let _ = ctx.eval_file(filename).map_err(|e| {
-            println!("Tulisp error:\n{}", e.format(&ctx));
+            log::error!("Tulisp error:\n{}", e.format(&ctx));
             e
         });
 
@@ -144,7 +144,7 @@ impl Config {
         if ctx
             .eval_file(&self.filename)
             .map_err(|e| {
-                println!("Tulisp error:\n{}", e.format(&ctx));
+                log::error!("Tulisp error:\n{}", e.format(&ctx));
                 e
             })
             .is_err()
@@ -152,7 +152,7 @@ impl Config {
             return;
         }
         let duration = start.elapsed();
-        println!(
+        log::info!(
             "Reloaded config file in {}ms",
             duration.as_nanos() as f64 / 1e6
         );
