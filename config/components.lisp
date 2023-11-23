@@ -54,7 +54,8 @@
         (soc (plist-get plist :soc))
         (config (plist-get plist :config))
         (power-expr (when power
-                      `((power . ,power))))
+                      `((power . ,power)
+                        (component-state . (power->component-state ,power)))))
         (battery
          `((category . battery)
            (name     . ,(format "bat-%s" id))
@@ -92,7 +93,8 @@
         (successors (plist-get plist :successors))
         (power-expr (when power
                       `((power . ,power)
-                        (current . (ac-current-from-power ,power)))))
+                        (current . (ac-current-from-power ,power))
+                        (component-state . (power->component-state ,power)))))
         (inverter
          `((category . inverter)
            (type     . battery)
