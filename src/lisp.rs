@@ -81,8 +81,13 @@ fn enum_from_alist<T: FromStr + Default>(
     ctx: &mut TulispContext,
     alist: &TulispObject,
     key: &str,
+    eval: bool,
 ) -> Option<T> {
-    let val = alist_get_as!(ctx, alist, key, as_symbol).ok()?;
+    let val = if eval {
+        alist_get_as!(ctx, alist, key, eval ++ as_symbol).ok()?
+    } else {
+        alist_get_as!(ctx, alist, key, as_symbol).ok()?
+    };
     match val.parse::<T>() {
         Ok(x) => Some(x),
         Err(_) => {
@@ -98,7 +103,7 @@ fn make_component_from_alist(
 ) -> Result<Component, Error> {
     let id = alist_get_as!(ctx, alist, "id", as_int)? as u64;
     let name = alist_get_as!(ctx, alist, "name", as_string).unwrap_or_default();
-    let Some(category) = enum_from_alist::<ComponentCategory>(ctx, alist, "category") else {
+    let Some(category) = enum_from_alist::<ComponentCategory>(ctx, alist, "category", false) else {
         return Err(Error::new(
             tulisp::ErrorKind::Uninitialized,
             format!("Invalid component category for component {}", id),
@@ -106,11 +111,11 @@ fn make_component_from_alist(
     };
 
     let metadata = match category {
-        ComponentCategory::Inverter => enum_from_alist::<InverterType>(ctx, alist, "type")
+        ComponentCategory::Inverter => enum_from_alist::<InverterType>(ctx, alist, "type", false)
             .map(|typ| component::Metadata::Inverter(inverter::Metadata { r#type: typ as i32 })),
-        ComponentCategory::Battery => enum_from_alist::<BatteryType>(ctx, alist, "type")
+        ComponentCategory::Battery => enum_from_alist::<BatteryType>(ctx, alist, "type", false)
             .map(|typ| component::Metadata::Battery(battery::Metadata { r#type: typ as i32 })),
-        ComponentCategory::EvCharger => enum_from_alist::<EvChargerType>(ctx, alist, "type")
+        ComponentCategory::EvCharger => enum_from_alist::<EvChargerType>(ctx, alist, "type", false)
             .map(|typ| component::Metadata::EvCharger(ev_charger::Metadata { r#type: typ as i32 })),
         _ => None,
     };
@@ -312,9 +317,9 @@ fn add_functions(ctx: &mut TulispContext) {
         let exclusion_upper = alist_get_f32!(ctx, &alist, "exclusion-upper");
 
         let component_state =
-            enum_from_alist::<battery::ComponentState>(ctx, &alist, "component-state")
+            enum_from_alist::<battery::ComponentState>(ctx, &alist, "component-state", true)
                 .unwrap_or_default() as i32;
-        let relay_state = enum_from_alist::<battery::RelayState>(ctx, &alist, "relay-state")
+        let relay_state = enum_from_alist::<battery::RelayState>(ctx, &alist, "relay-state", true)
             .unwrap_or_default() as i32;
 
         return Ok(Rc::new(ComponentData {
@@ -447,7 +452,7 @@ fn add_functions(ctx: &mut TulispContext) {
         let id = alist_get_as!(ctx, &alist, "id", eval ++ as_int)? as u64;
 
         let component_state =
-            enum_from_alist::<inverter::ComponentState>(ctx, &alist, "component-state")
+            enum_from_alist::<inverter::ComponentState>(ctx, &alist, "component-state", true)
                 .unwrap_or_default() as i32;
 
         return Ok(Rc::new(ComponentData {
@@ -486,11 +491,12 @@ fn add_functions(ctx: &mut TulispContext) {
         let id = alist_get_as!(ctx, &alist, "id", eval ++ as_int)? as u64;
 
         let component_state =
-            enum_from_alist::<ev_charger::ComponentState>(ctx, &alist, "component-state")
+            enum_from_alist::<ev_charger::ComponentState>(ctx, &alist, "component-state", true)
                 .unwrap_or_default() as i32;
 
-        let cable_state = enum_from_alist::<ev_charger::CableState>(ctx, &alist, "cable-state")
-            .unwrap_or_default() as i32;
+        let cable_state =
+            enum_from_alist::<ev_charger::CableState>(ctx, &alist, "cable-state", true)
+                .unwrap_or_default() as i32;
 
         return Ok(Rc::new(ComponentData {
             ts: Some(Timestamp::from(std::time::SystemTime::now())),
