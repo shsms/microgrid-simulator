@@ -35,14 +35,12 @@
     (add-to-connections-alist id (alist-get 'id successor))))
 
 
-(defun power-expr-from-successors (successors)
+(defun make-power-expr (successors)
   (let ((expr ()))
     (dolist (successor successors)
       (if-let ((power (alist-get 'power successor)))
         (setq expr (cons power expr))))
-    (if expr
-        `((power . ,(cons '+ expr)))
-      nil)))
+    (when expr (cons '+ expr))))
 
 
 (defun set-power-active (id power)

@@ -128,9 +128,9 @@
          (power (plist-get plist :power))
          (config (plist-get plist :config))
          (successors (plist-get plist :successors))
-         (power-expr (if power
-                         `((power . ,power))
-                       (power-expr-from-successors successors)))
+         (power-expr (if-let ((power (or power
+                                         (make-power-expr successors))))
+                         `((power . ,power))))
          (meter
           `((category . meter)
             (name     . ,(format "meter-%s" id))
