@@ -70,11 +70,15 @@
 
 
 (defun component-data-maker (method data-alist defaults-alist keys)
-  (let ((input-alist (append (eval data-alist) (eval defaults-alist)))
+  (let ((data-alist (eval data-alist))
+        (defaults-alist (eval defaults-alist))
         (args-alist))
+
     (dolist (key keys)
-      (when-let ((val (alist-get key input-alist)))
-          (setq args-alist (cons (cons key val) args-alist))))
+      (if-let ((val (alist-get key data-alist)))
+          (setq args-alist (cons (cons key val) args-alist))
+        (if-let ((val (alist-get key defaults-alist)))
+            (setq args-alist (cons (cons key `(quote ,val)) args-alist)))))
 
     (list 'lambda '(_) `(,method ,args-alist))))
 
