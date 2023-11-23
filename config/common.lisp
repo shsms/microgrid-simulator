@@ -86,3 +86,11 @@
 (defun ac-current-from-power (power)
   (let ((per-phase-power (/ power 3)))
     (mapcar '(lambda (voltage) (/ per-phase-power voltage)) ac-voltage)))
+
+
+(defun power->component-state (power)
+  (cond
+    ((not (numberp power)) nil)
+    ((> power 0) 'charging)
+    ((< power 0) 'discharging)
+    (:else       'idle)))
