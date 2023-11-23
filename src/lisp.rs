@@ -54,7 +54,12 @@ macro_rules! alist_get_f32 {
 
 macro_rules! alist_get_3_phase {
     ($ctx: expr, $rest:expr, $key:expr) => {{
-        let items = alist_get_as!($ctx, $rest, $key).unwrap_or_default();
+        let expr = alist_get_as!($ctx, $rest, $key).unwrap_or_default();
+        let items = if expr.consp() && expr.car_and_then(|x| Ok(x.numberp()))? {
+            expr
+        } else {
+            $ctx.eval(&expr)?
+        };
         (
             items
                 .car()

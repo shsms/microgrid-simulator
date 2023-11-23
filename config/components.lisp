@@ -91,7 +91,8 @@
         (config (plist-get plist :config))
         (successors (plist-get plist :successors))
         (power-expr (when power
-                      `((power . ,power))))
+                      `((power . ,power)
+                        (current . (ac-current-from-power ,power)))))
         (inverter
          `((category . inverter)
            (type     . battery)
@@ -128,6 +129,11 @@
          (power (plist-get plist :power))
          (config (plist-get plist :config))
          (successors (plist-get plist :successors))
+         (current-expr (if-let ((current (if power
+                                             `(ac-current-from-power ,power)
+                                             (make-current-expr successors)
+                                             )))
+                           `((current . ,current))))
          (power-expr (if-let ((power (or power
                                          (make-power-expr successors))))
                          `((power . ,power))))
@@ -135,11 +141,13 @@
           `((category . meter)
             (name     . ,(format "meter-%s" id))
             (id       . ,id)
+            ,@current-expr
             ,@power-expr
             (stream   . ,(list
                           `(interval . ,interval)
                           `(data     . ,(meter-data-maker
                                          `((id    . ,id)
+                                           ,@current-expr
                                            ,@power-expr
                                            ,@config)
                                          meter-defaults)))))))
