@@ -17,7 +17,7 @@ use prost_types::Timestamp;
 use tokio_stream::StreamExt;
 use tulisp::{list, tulisp_fn, tulisp_fn_no_eval, Error, TulispContext, TulispObject};
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct Config {
     filename: String,
 
@@ -25,6 +25,11 @@ pub struct Config {
 
     /// Component ID -> (ComponentData Method, Interval)
     stream_methods: Rc<RefCell<HashMap<u64, (TulispObject, u64)>>>,
+
+    /// Component ID -> last power update time.
+    set_power_times: Rc<RefCell<HashMap<u64, std::time::Instant>>>,
+
+    start_time: std::time::Instant,
 }
 
 // Tokio is configured to use the current_thread runtime, so it is not unsafe to
@@ -145,6 +150,8 @@ impl Config {
             filename: filename.to_string(),
             ctx: Rc::new(RefCell::new(ctx)),
             stream_methods: Rc::new(RefCell::new(HashMap::new())),
+            set_power_times: Rc::new(RefCell::new(HashMap::new())),
+            start_time: std::time::Instant::now(),
         }
     }
 
@@ -249,9 +256,21 @@ Invalid socket-addr.  Add a config line in this format:
 
     pub fn set_power_active(&self, component_id: u64, power: f32) -> Result<(), Error> {
         let func = self.ctx.borrow_mut().intern("set-power-active");
+        let last_update_time = self
+            .set_power_times
+            .borrow()
+            .get(&component_id)
+            .unwrap_or(&self.start_time)
+            .clone();
+        let now = std::time::Instant::now();
+        self.set_power_times.borrow_mut().insert(component_id, now);
         self.ctx.borrow_mut().funcall(
             &func,
-            &list![(component_id as i64).into(), (power as f64).into()]?,
+            &list![
+                (component_id as i64).into(),
+                (power as f64).into(),
+                (now.duration_since(last_update_time).as_millis() as i64).into()
+            ]?,
         )?;
 
         Ok(())

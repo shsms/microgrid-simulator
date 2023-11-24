@@ -14,6 +14,18 @@
   (intern (format "component-power-%s" id)))
 
 
+(defun energy-symbol-from-id (id)
+  (intern (format "component-energy-%s" id)))
+
+
+(defun soc-symbol-from-id (id)
+  (intern (format "component-soc-%s" id)))
+
+
+(defun soc-expr-symbol-from-id (id)
+  (intern (format "component-soc-expr-%s" id)))
+
+
 (defun add-to-connections-alist (id-from id-to)
   (setq connections-alist (cons (cons id-from id-to)
                                 connections-alist)))
@@ -59,15 +71,22 @@
                         (setq p3-expr (cons '+ p3-expr))))))
 
 
-(defun set-power-active (id power)
+(defun set-power-active (id power ms-since-last-update)
   (let* ((power-symbol (power-symbol-from-id id))
-         (original-value (eval power-symbol)))
+         (energy-symbol (energy-symbol-from-id id))
+         (bat-soc-expr (eval (soc-expr-symbol-from-id id)))
+         (original-power (eval power-symbol))
+         (hours (/ ms-since-last-update 3600.0 1000.0)))
+
     (eval `(setq ,power-symbol power))
-    (when (not (equal original-value power))
+    (eval `(setq ,energy-symbol (+ ,energy-symbol (* ,original-power ,hours))))
+    (eval bat-soc-expr)
+
+    (when (not (equal original-power power))
       (log.info (format "Setting power for component %d to %f (was %f))"
                         id
                         power
-                        original-value)))))
+                        original-power)))))
 
 
 (defun component-data-maker (method data-alist defaults-alist keys)

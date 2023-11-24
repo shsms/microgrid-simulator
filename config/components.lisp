@@ -7,20 +7,40 @@
          (inv-id (get-comp-id))
          (bat-id (get-comp-id))
          (inv-power-symbol (power-symbol-from-id inv-id))
-         (bat-power-symbol (power-symbol-from-id bat-id))
-         (inv-power-expr inv-power-symbol)
-         (bat-power-expr `(setq
-                           ,bat-power-symbol
-                           ,inv-power-expr))
+         (inv-energy-symbol (energy-symbol-from-id inv-id))
+
+         (capacity (alist-get 'capacity `(,@bat-config ,@battery-defaults)))
+         (initial-soc (alist-get 'initial-soc `(,@bat-config ,@battery-defaults)))
+
+         ;; using the inv id to make the bat soc symbol works in this
+         ;; case because this function makes exactly 1 unique battery
+         ;; per inverter.
+         ;;
+         ;; The soc calculation is done in `set-power-active', where
+         ;; only the inverter id is available, and so the generated
+         ;; expression needs be put in a dynamic variable
+         ;; `bat-soc-expr-symbol', that can be accessed by the
+         ;; inverter id.
+         (bat-soc-symbol (soc-symbol-from-id inv-id))
+         (bat-soc-expr `(setq ,bat-soc-symbol
+                              (+ ,initial-soc
+                                 (* 100.0 (/ ,inv-energy-symbol ,capacity)))))
+         (bat-soc-expr-symbol (soc-expr-symbol-from-id inv-id))
+
          (battery (make-battery :id bat-id
-                                :power bat-power-expr
+                                :power inv-power-symbol
+                                :soc bat-soc-symbol
                                 :config bat-config))
          (inverter (make-battery-inverter :id inv-id
-                                          :power inv-power-expr
+                                          :power inv-power-symbol
                                           :config inv-config)))
 
     (when (not (boundp inv-power-symbol))
-      (eval `(setq ,inv-power-symbol starting-power)))
+      (eval `(setq ,inv-power-symbol starting-power))
+      (eval `(setq ,inv-energy-symbol 0.0))
+      (eval `(setq ,bat-soc-symbol ,initial-soc)))
+
+    (eval `(setq ,bat-soc-expr-symbol bat-soc-expr))
 
     (add-to-connections-alist inv-id bat-id)
 
@@ -28,7 +48,7 @@
         inverter
       (let* ((meter-id (get-comp-id))
              (meter (make-meter :id meter-id
-                                :power inv-power-expr)))
+                                :power inv-power-symbol)))
         (add-to-connections-alist meter-id inv-id)
         meter))))
 
@@ -48,14 +68,14 @@
                           exclusion-lower exclusion-upper)))
 
 (defun make-battery (&rest plist)
-  (let ((id (or (plist-get plist :id) (get-comp-id)))
+  (let* ((id (or (plist-get plist :id) (get-comp-id)))
         (interval (or (plist-get plist :interval) battery-interval))
         (power (plist-get plist :power))
-        (soc (plist-get plist :soc))
         (config (plist-get plist :config))
         (power-expr (when power
                       `((power . ,power)
                         (component-state . (power->component-state ,power)))))
+        (soc-expr `((soc . ,(plist-get plist :soc))))
         (battery
          `((category . battery)
            (name     . ,(format "bat-%s" id))
@@ -65,8 +85,7 @@
                          `(interval . ,interval)
                          `(data     . ,(battery-data-maker
                                         `((id    . ,id)
-                                          ,@(when soc
-                                              `((soc . ,soc)))
+                                          ,@soc-expr
                                           ,@power-expr
                                           ,@config)
                                         battery-defaults)))))))
@@ -86,7 +105,7 @@
                           inclusion-lower inclusion-upper)))
 
 (defun make-battery-inverter (&rest plist)
-  (let ((id (or (plist-get plist :id) (get-comp-id)))
+  (let* ((id (or (plist-get plist :id) (get-comp-id)))
         (interval (or (plist-get plist :interval) inverter-interval))
         (power (plist-get plist :power))
         (config (plist-get plist :config))
