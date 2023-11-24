@@ -16,7 +16,7 @@
 (setq ev-charger-interval 1500)
 
 
-(setq battery-defaults '((soc             . 88.0)
+(setq battery-defaults '((initial-soc     . 10.0)
                          (soc-lower       . 10.0)
                          (soc-upper       . 90.0)
                          (capacity        . 92000.0)
@@ -50,6 +50,6 @@
                :id 2
                :successors (list
                             (make-inv-bat-chain
-                             :bat-config '((soc . 10)))
+                             :bat-config '((initial-soc . 70)))
                             (make-inv-bat-chain
                              :no-meter t)))))

@@ -14,6 +14,34 @@
   (intern (format "component-power-%s" id)))
 
 
+(defun energy-symbol-from-id (id)
+  (intern (format "component-energy-%s" id)))
+
+
+(defun soc-symbol-from-id (id)
+  (intern (format "component-soc-%s" id)))
+
+
+(defun soc-expr-symbol-from-id (id)
+  (intern (format "component-soc-expr-%s" id)))
+
+
+(defun inclusion-upper-symbol-from-id (id)
+  (intern (format "component-inclusion-upper-%s" id)))
+
+
+(defun inclusion-lower-symbol-from-id (id)
+  (intern (format "component-inclusion-lower-%s" id)))
+
+
+(defun inclusion-lower-expr-symbol-from-id (id)
+  (intern (format "component-inclusion-lower-expr-%s" id)))
+
+
+(defun inclusion-upper-expr-symbol-from-id (id)
+  (intern (format "component-inclusion-upper-expr-%s" id)))
+
+
 (defun add-to-connections-alist (id-from id-to)
   (setq connections-alist (cons (cons id-from id-to)
                                 connections-alist)))
@@ -59,15 +87,27 @@
                         (setq p3-expr (cons '+ p3-expr))))))
 
 
-(defun set-power-active (id power)
+(defun set-power-active (id power ms-since-last-update)
   (let* ((power-symbol (power-symbol-from-id id))
-         (original-value (eval power-symbol)))
+         (energy-symbol (energy-symbol-from-id id))
+         (bat-soc-expr (eval (soc-expr-symbol-from-id id)))
+         (bat-incl-lower-expr (eval (inclusion-lower-expr-symbol-from-id id)))
+         (bat-incl-upper-expr (eval (inclusion-upper-expr-symbol-from-id id)))
+         (original-power (eval power-symbol))
+         (hours (/ ms-since-last-update 3600.0 1000.0)))
+
+    (eval `(setq ,energy-symbol (+ ,energy-symbol (* ,original-power ,hours))))
+    (eval bat-soc-expr)
+    (eval bat-incl-lower-expr)
+    (eval bat-incl-upper-expr)
+
     (eval `(setq ,power-symbol power))
-    (when (not (equal original-value power))
+
+    (when (not (equal original-power power))
       (log.info (format "Setting power for component %d to %f (was %f))"
                         id
                         power
-                        original-value)))))
+                        original-power)))))
 
 
 (defun component-data-maker (method data-alist defaults-alist keys)
@@ -95,3 +135,16 @@
     ((> power 0) 'charging)
     ((< power 0) 'discharging)
     (:else       'idle)))
+
+
+(defun bounded-exp-decay (start stop val base min_val)
+  (let* ((base (max base 1.1))
+         (factor (/ 10.0 (- stop start)))
+         (stop (+ start (* (- stop start) factor)))
+         (val (+ start (* (- val start) factor)))
+         (shift (- min_val (expt base (- start stop 1)))))
+    (cond
+      ((>= val stop) 0.0)
+      ((< val start) 1.0)
+      (t (+ shift (* (- 1.0 shift)
+                     (expt base (- start val))))))))
