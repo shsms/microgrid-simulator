@@ -9,8 +9,11 @@
          (inv-power-symbol (power-symbol-from-id inv-id))
          (inv-energy-symbol (energy-symbol-from-id inv-id))
 
-         (capacity (alist-get 'capacity `(,@bat-config ,@battery-defaults)))
-         (initial-soc (alist-get 'initial-soc `(,@bat-config ,@battery-defaults)))
+         (bat-config-alist `(,@bat-config ,@battery-defaults))
+         (inv-config-alist `(,@inv-config ,@inverter-defaults))
+
+         (capacity (alist-get 'capacity bat-config-alist))
+         (initial-soc (alist-get 'initial-soc bat-config-alist))
 
          ;; using the inv id to make the bat soc symbol works in this
          ;; case because this function makes exactly 1 unique battery
@@ -27,9 +30,42 @@
                                  (* 100.0 (/ ,inv-energy-symbol ,capacity)))))
          (bat-soc-expr-symbol (soc-expr-symbol-from-id inv-id))
 
+         (bat-incl-lower (alist-get 'inclusion-lower bat-config-alist))
+         (bat-incl-upper (alist-get 'inclusion-upper bat-config-alist))
+         (inv-incl-lower (alist-get 'inclusion-lower inv-config-alist))
+         (inv-incl-upper (alist-get 'inclusion-upper inv-config-alist))
+
+         (bat-incl-lower-symbol (inclusion-lower-symbol-from-id bat-id))
+         (bat-incl-upper-symbol (inclusion-upper-symbol-from-id bat-id))
+
+         (soc-lower (alist-get 'soc-lower bat-config-alist))
+         (soc-upper (alist-get 'soc-upper bat-config-alist))
+
+         (bat-incl-lower-expr `(setq ,bat-incl-lower-symbol
+                                     (if (< (- ,bat-soc-symbol ,soc-lower) 10.0)
+                                         (* ,bat-incl-lower
+                                            (bounded-exp-decay ,(+ soc-lower 10.0)
+                                                             ,soc-lower
+                                                             ,bat-soc-symbol
+                                                             1.2
+                                                             0.0))
+                                       ,bat-incl-lower)))
+         (bat-incl-upper-expr `(setq ,bat-incl-upper-symbol
+                                     (if (< (- ,soc-upper ,bat-soc-symbol) 10.0)
+                                         (* ,bat-incl-upper
+                                            (bounded-exp-decay ,(- soc-upper 10.0)
+                                                             ,soc-upper
+                                                             ,bat-soc-symbol
+                                                             1.2
+                                                             0.0))
+                                       ,bat-incl-upper)))
+         (bat-incl-lower-expr-symbol (inclusion-lower-expr-symbol-from-id inv-id))
+         (bat-incl-upper-expr-symbol (inclusion-upper-expr-symbol-from-id inv-id))
          (battery (make-battery :id bat-id
                                 :power inv-power-symbol
                                 :soc bat-soc-symbol
+                                :inclusion-lower bat-incl-lower-symbol
+                                :inclusion-upper bat-incl-upper-symbol
                                 :config bat-config))
          (inverter (make-battery-inverter :id inv-id
                                           :power inv-power-symbol
@@ -41,6 +77,10 @@
       (eval `(setq ,bat-soc-symbol ,initial-soc)))
 
     (eval `(setq ,bat-soc-expr-symbol bat-soc-expr))
+    (eval `(setq ,bat-incl-lower-expr-symbol bat-incl-lower-expr))
+    (eval `(setq ,bat-incl-upper-expr-symbol bat-incl-upper-expr))
+    (eval bat-incl-lower-expr)
+    (eval bat-incl-upper-expr)
 
     (add-to-connections-alist inv-id bat-id)
 
@@ -75,7 +115,9 @@
         (power-expr (when power
                       `((power . ,power)
                         (component-state . (power->component-state ,power)))))
-        (soc-expr `((soc . ,(plist-get plist :soc))))
+        (soc-bounds-expr `((soc . ,(plist-get plist :soc))
+                           (inclusion-lower . ,(plist-get plist :inclusion-lower))
+                           (inclusion-upper . ,(plist-get plist :inclusion-upper))))
         (battery
          `((category . battery)
            (name     . ,(format "bat-%s" id))
@@ -85,7 +127,7 @@
                          `(interval . ,interval)
                          `(data     . ,(battery-data-maker
                                         `((id    . ,id)
-                                          ,@soc-expr
+                                          ,@soc-bounds-expr
                                           ,@power-expr
                                           ,@config)
                                         battery-defaults)))))))
