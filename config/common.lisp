@@ -63,10 +63,11 @@
   (let* ((power-symbol (power-symbol-from-id id))
          (original-value (eval power-symbol)))
     (eval `(setq ,power-symbol power))
-    (log.info (format "Setting power for component %d to %f (was %f))"
-                   id
-                   power
-                   original-value))))
+    (when (not (equal original-value power))
+      (log.info (format "Setting power for component %d to %f (was %f))"
+                        id
+                        power
+                        original-value)))))
 
 
 (defun component-data-maker (method data-alist defaults-alist keys)
