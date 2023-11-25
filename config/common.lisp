@@ -92,10 +92,11 @@
             (log.info (format "Setting power for component %d to %f (was %f))"
                               id
                               power
-                              original-power))))
-        (log.warn (format "Power %f out of bounds for component %d" power id)))
-
-    ))
+                              original-power)))
+          nil)
+        (let ((err (format "Requested power %f is out of bounds for component id %d" power id)))
+        (log.warn err)
+        err))))
 
 
 (defun component-data-maker (method data-alist defaults-alist keys)

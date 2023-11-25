@@ -72,13 +72,14 @@ impl Microgrid for MicrogridServer {
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let request = _request.into_inner();
         self.timeout_tracker.add(request.component_id);
-        self.config
-            .set_power_active(request.component_id, request.power)
-            .map_err(|e| {
-                log::error!("Tulisp error:\n{}", e.format(&self.config.ctx.borrow()));
-                e
-            })
-            .unwrap();
+        let res = self
+            .config
+            .set_power_active(request.component_id, request.power);
+
+        if let Err(err) = res {
+            log::error!("Tulisp error:\n{}", err.format(&self.config.ctx.borrow()));
+            return Err(tonic::Status::failed_precondition(err.desc()));
+        }
         Ok(tonic::Response::new(()))
     }
 
