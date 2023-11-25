@@ -17,16 +17,7 @@
          (capacity (alist-get 'capacity bat-config-alist))
          (initial-soc (alist-get 'initial-soc bat-config-alist))
 
-         ;; using the inv id to make the bat soc symbol works in this
-         ;; case because this function makes exactly 1 unique battery
-         ;; per inverter.
-         ;;
-         ;; The soc calculation is done in `set-power-active', where
-         ;; only the inverter id is available, and so the generated
-         ;; expression needs be put in a dynamic variable
-         ;; `bat-soc-expr-symbol', that can be accessed by the
-         ;; inverter id.
-         (bat-soc-symbol (soc-symbol-from-id inv-id))
+         (bat-soc-symbol (soc-symbol-from-id bat-id))
          (bat-soc-expr `(setq ,bat-soc-symbol
                               (+ ,initial-soc
                                  (* 100.0 (/ ,inv-energy-symbol ,capacity)))))
@@ -46,20 +37,20 @@
                                      (if (< (- ,bat-soc-symbol ,soc-lower) 10.0)
                                          (* ,bat-incl-lower
                                             (bounded-exp-decay ,(+ soc-lower 10.0)
-                                                             ,soc-lower
-                                                             ,bat-soc-symbol
-                                                             1.2
-                                                             0.0))
-                                       ,bat-incl-lower)))
+                                                               ,soc-lower
+                                                               ,bat-soc-symbol
+                                                               1.2
+                                                               0.0))
+                                         ,bat-incl-lower)))
          (bat-incl-upper-expr `(setq ,bat-incl-upper-symbol
                                      (if (< (- ,soc-upper ,bat-soc-symbol) 10.0)
                                          (* ,bat-incl-upper
                                             (bounded-exp-decay ,(- soc-upper 10.0)
-                                                             ,soc-upper
-                                                             ,bat-soc-symbol
-                                                             1.2
-                                                             0.0))
-                                       ,bat-incl-upper)))
+                                                               ,soc-upper
+                                                               ,bat-soc-symbol
+                                                               1.2
+                                                               0.0))
+                                         ,bat-incl-upper)))
 
          (battery (make-battery :id bat-id
                                 :power inv-power-symbol
