@@ -202,7 +202,14 @@ impl Config {
         tokio::spawn(async move {
             loop {
                 config.update_state();
-                tokio::time::sleep(Duration::from_secs(1)).await;
+                let update_interval = config
+                    .ctx
+                    .borrow_mut()
+                    .intern("state-update-interval-ms")
+                    .get()
+                    .and_then(|x| x.as_int())
+                    .unwrap_or(2000) as u64;
+                tokio::time::sleep(Duration::from_millis(update_interval)).await;
             }
         });
     }

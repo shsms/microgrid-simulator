@@ -4,6 +4,7 @@
 
 (setq socket-addr "[::1]:8800")
 (setq retain-requests-duration-ms 5000)
+(setq state-update-interval-ms 3000)
 
 
 (setq ac-frequency 50.0)
