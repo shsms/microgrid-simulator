@@ -22,10 +22,13 @@
                               (+ ,initial-soc
                                  (* 100.0 (/ ,inv-energy-symbol ,capacity)))))
 
-         (bat-incl-lower (alist-get 'inclusion-lower bat-config-alist))
-         (bat-incl-upper (alist-get 'inclusion-upper bat-config-alist))
-         (inv-incl-lower (alist-get 'inclusion-lower inv-config-alist))
-         (inv-incl-upper (alist-get 'inclusion-upper inv-config-alist))
+         (bat-rated-bounds (alist-get 'rated-bounds bat-config-alist))
+         (inv-rated-bounds (alist-get 'rated-bounds inv-config-alist))
+
+         (bat-rated-lower (nth 0 bat-rated-bounds))
+         (bat-rated-upper (nth 1 bat-rated-bounds))
+         (inv-rated-lower (nth 0 inv-rated-bounds))
+         (inv-rated-upper (nth 1 inv-rated-bounds))
 
          (bat-incl-lower-symbol (inclusion-lower-symbol-from-id bat-id))
          (bat-incl-upper-symbol (inclusion-upper-symbol-from-id bat-id))
@@ -35,22 +38,22 @@
 
          (bat-incl-lower-expr `(setq ,bat-incl-lower-symbol
                                      (if (< (- ,bat-soc-symbol ,soc-lower) 10.0)
-                                         (* ,bat-incl-lower
+                                         (* ,bat-rated-lower
                                             (bounded-exp-decay ,(+ soc-lower 10.0)
                                                                ,soc-lower
                                                                ,bat-soc-symbol
                                                                1.2
                                                                0.0))
-                                         ,bat-incl-lower)))
+                                         ,bat-rated-lower)))
          (bat-incl-upper-expr `(setq ,bat-incl-upper-symbol
                                      (if (< (- ,soc-upper ,bat-soc-symbol) 10.0)
-                                         (* ,bat-incl-upper
+                                         (* ,bat-rated-upper
                                             (bounded-exp-decay ,(- soc-upper 10.0)
                                                                ,soc-upper
                                                                ,bat-soc-symbol
                                                                1.2
                                                                0.0))
-                                         ,bat-incl-upper)))
+                                         ,bat-rated-upper)))
 
          (battery (make-battery :id bat-id
                                 :power inv-power-symbol
@@ -60,6 +63,8 @@
                                 :config bat-config))
          (inverter (make-battery-inverter :id inv-id
                                           :power inv-power-symbol
+                                          :inclusion-lower inv-rated-lower
+                                          :inclusion-upper inv-rated-upper
                                           :config inv-config)))
 
     (when (not (boundp inv-power-symbol))
@@ -156,6 +161,8 @@
                       `((power . ,power)
                         (current . (ac-current-from-power ,power))
                         (component-state . (power->component-state ,power)))))
+         (bounds-expr `((inclusion-lower . ,(plist-get plist :inclusion-lower))
+                           (inclusion-upper . ,(plist-get plist :inclusion-upper))))
         (inverter
          `((category . inverter)
            (type     . battery)
@@ -166,6 +173,7 @@
                          `(interval . ,interval)
                          `(data     . ,(inverter-data-maker
                                         `((id . ,id)
+                                          ,@bounds-expr
                                           ,@power-expr
                                           ,@config)
                                         inverter-defaults)))))))

@@ -21,15 +21,13 @@
                          (soc-upper       . 90.0)
                          (capacity        . 92000.0)
                          (voltage         . 800.0)
-                         (inclusion-lower . -30000.0)
-                         (inclusion-upper . 30000.0)
+                         (rated-bounds    . (-30000.0 30000.0))
                          (component-state . idle)
                          (relay-state     . closed)))
 
 
 (setq inverter-defaults `((component-state . idle)
-                          (inclusion-lower . -30000.0)
-                          (inclusion-upper . 30000.0)
+                          (rated-bounds    . (-30000.0 30000.0))
                           (voltage         . ,ac-voltage)))
 
 
