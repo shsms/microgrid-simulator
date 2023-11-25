@@ -4,6 +4,7 @@
 (setq comp--id--counter 1000)
 (setq connections-alist nil)
 (setq components-alist nil)
+(setq state-update-functions nil)
 
 
 (defun get-comp-id ()
@@ -28,6 +29,10 @@
 
 (defun inclusion-lower-symbol-from-id (id)
   (intern (format "component-inclusion-lower-%s" id)))
+
+
+(defun bounds-check-func-symbol-from-id (id)
+  (intern (format "component-bounds-check-func-%s" id)))
 
 
 (defun add-to-connections-alist (id-from id-to)
@@ -77,15 +82,21 @@
 
 (defun set-power-active (id power)
   (let* ((power-symbol (power-symbol-from-id id))
+         (bounds-check-func (eval (bounds-check-func-symbol-from-id id)))
          (original-power (eval power-symbol)))
 
-    (eval `(setq ,power-symbol power))
-
-    (when (not (equal original-power power))
-      (log.info (format "Setting power for component %d to %f (was %f))"
-                        id
-                        power
-                        original-power)))))
+    (if (funcall bounds-check-func power)
+        (progn
+          (eval `(setq ,power-symbol power))
+          (when (not (equal original-power power))
+            (log.info (format "Setting power for component %d to %f (was %f))"
+                              id
+                              power
+                              original-power)))
+          nil)
+        (let ((err (format "Requested power %f is out of bounds for component id %d" power id)))
+        (log.warn err)
+        err))))
 
 
 (defun component-data-maker (method data-alist defaults-alist keys)

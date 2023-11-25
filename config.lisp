@@ -4,32 +4,32 @@
 
 (setq socket-addr "[::1]:8800")
 (setq retain-requests-duration-ms 5000)
+(setq state-update-interval-ms 3000)
 
 
 (setq ac-frequency 50.0)
 (setq ac-voltage '(230.0 230.0 230.0))
 
 
-(setq battery-interval 500)
-(setq inverter-interval 500)
+(setq battery-interval 200)
+(setq inverter-interval 200)
 (setq meter-interval 200)
 (setq ev-charger-interval 1500)
 
 
-(setq battery-defaults '((initial-soc     . 10.0)
-                         (soc-lower       . 10.0)
-                         (soc-upper       . 90.0)
-                         (capacity        . 92000.0)
-                         (voltage         . 800.0)
-                         (inclusion-lower . -30000.0)
-                         (inclusion-upper . 30000.0)
-                         (component-state . idle)
-                         (relay-state     . closed)))
+(setq battery-defaults '((initial-soc      . 10.0)
+                         (soc-lower        . 10.0)
+                         (soc-upper        . 90.0)
+                         (capacity         . 92000.0)
+                         (voltage          . 800.0)
+                         (rated-bounds     . (-30000.0 30000.0))
+                         (exclusion-bounds . (0.0 0.0))
+                         (component-state  . idle)
+                         (relay-state      . closed)))
 
 
 (setq inverter-defaults `((component-state . idle)
-                          (inclusion-lower . -30000.0)
-                          (inclusion-upper . 30000.0)
+                          (rated-bounds    . (-30000.0 30000.0))
                           (voltage         . ,ac-voltage)))
 
 

@@ -1,6 +1,4 @@
 (defun make-inv-bat-chain (&rest plist)
-  (when (not (boundp 'state-update-functions))
-    (setq state-update-functions nil))
   (let* ((no-meter (plist-get plist :no-meter))
          (bat-config (plist-get plist :bat-config))
          (inv-config (plist-get plist :inv-config))
@@ -22,50 +20,75 @@
                               (+ ,initial-soc
                                  (* 100.0 (/ ,inv-energy-symbol ,capacity)))))
 
-         (bat-incl-lower (alist-get 'inclusion-lower bat-config-alist))
-         (bat-incl-upper (alist-get 'inclusion-upper bat-config-alist))
-         (inv-incl-lower (alist-get 'inclusion-lower inv-config-alist))
-         (inv-incl-upper (alist-get 'inclusion-upper inv-config-alist))
+         (bat-rated-bounds (or (alist-get 'rated-bounds bat-config-alist) '(0.0 0.0)))
+         (inv-rated-bounds (or (alist-get 'rated-bounds inv-config-alist) '(0.0 0.0)))
+         (bat-excl-bounds (or (alist-get 'exclusion-bounds bat-config-alist) '(0.0 0.0)))
+
+         (bat-rated-lower (nth 0 bat-rated-bounds))
+         (bat-rated-upper (nth 1 bat-rated-bounds))
+         (inv-rated-lower (nth 0 inv-rated-bounds))
+         (inv-rated-upper (nth 1 inv-rated-bounds))
+         (bat-excl-lower (nth 0 bat-excl-bounds))
+         (bat-excl-upper (nth 1 bat-excl-bounds))
 
          (bat-incl-lower-symbol (inclusion-lower-symbol-from-id bat-id))
          (bat-incl-upper-symbol (inclusion-upper-symbol-from-id bat-id))
+
+         (bounds-check-func-symbol (bounds-check-func-symbol-from-id inv-id))
 
          (soc-lower (alist-get 'soc-lower bat-config-alist))
          (soc-upper (alist-get 'soc-upper bat-config-alist))
 
          (bat-incl-lower-expr `(setq ,bat-incl-lower-symbol
                                      (if (< (- ,bat-soc-symbol ,soc-lower) 10.0)
-                                         (* ,bat-incl-lower
+                                         (* ,bat-rated-lower
                                             (bounded-exp-decay ,(+ soc-lower 10.0)
                                                                ,soc-lower
                                                                ,bat-soc-symbol
                                                                1.2
                                                                0.0))
-                                         ,bat-incl-lower)))
+                                         ,bat-rated-lower)))
          (bat-incl-upper-expr `(setq ,bat-incl-upper-symbol
                                      (if (< (- ,soc-upper ,bat-soc-symbol) 10.0)
-                                         (* ,bat-incl-upper
+                                         (* ,bat-rated-upper
                                             (bounded-exp-decay ,(- soc-upper 10.0)
                                                                ,soc-upper
                                                                ,bat-soc-symbol
                                                                1.2
                                                                0.0))
-                                         ,bat-incl-upper)))
+                                         ,bat-rated-upper)))
 
          (battery (make-battery :id bat-id
                                 :power inv-power-symbol
                                 :soc bat-soc-symbol
                                 :inclusion-lower bat-incl-lower-symbol
                                 :inclusion-upper bat-incl-upper-symbol
+                                :exclusion-lower bat-excl-lower
+                                :exclusion-upper bat-excl-upper
                                 :config bat-config))
          (inverter (make-battery-inverter :id inv-id
                                           :power inv-power-symbol
+                                          :inclusion-lower inv-rated-lower
+                                          :inclusion-upper inv-rated-upper
                                           :config inv-config)))
 
     (when (not (boundp inv-power-symbol))
       (eval `(setq ,inv-power-symbol initial-power))
       (eval `(setq ,inv-energy-symbol 0.0))
       (eval `(setq ,bat-soc-symbol ,initial-soc)))
+
+    (eval `(setq ,bounds-check-func-symbol
+                 (list 'lambda '(power)
+                       `(and (<= ,bat-incl-lower-symbol
+                                 power
+                                 ,bat-incl-upper-symbol)
+                             (<= ,inv-rated-lower
+                                 power
+                                 ,inv-rated-upper)
+                             (or (equal power 0.0)
+                                 (not (< ,bat-excl-lower
+                                         power
+                                         ,bat-excl-upper)))))))
 
     (setq state-update-functions
           (cons (list 'lambda '(ms-since-last-call)
@@ -76,7 +99,11 @@
                                             ,(* 60.0 60.0 1000.0))))))
                       `(eval ,bat-soc-expr)
                       `(eval ,bat-incl-lower-expr)
-                      `(eval ,bat-incl-upper-expr))
+                      `(eval ,bat-incl-upper-expr)
+                      `(cond ((< ,inv-power-symbol ,bat-incl-lower-symbol)
+                              (setq ,inv-power-symbol ,bat-incl-lower-symbol))
+                             ((> ,inv-power-symbol ,bat-incl-upper-symbol)
+                              (setq ,inv-power-symbol ,bat-incl-upper-symbol))))
                 state-update-functions))
 
     (eval bat-incl-lower-expr)
@@ -117,7 +144,9 @@
                         (component-state . (power->component-state ,power)))))
         (soc-bounds-expr `((soc . ,(plist-get plist :soc))
                            (inclusion-lower . ,(plist-get plist :inclusion-lower))
-                           (inclusion-upper . ,(plist-get plist :inclusion-upper))))
+                           (inclusion-upper . ,(plist-get plist :inclusion-upper))
+                           (exclusion-lower . ,(plist-get plist :exclusion-lower))
+                           (exclusion-upper . ,(plist-get plist :exclusion-upper))))
         (battery
          `((category . battery)
            (name     . ,(format "bat-%s" id))
@@ -156,6 +185,8 @@
                       `((power . ,power)
                         (current . (ac-current-from-power ,power))
                         (component-state . (power->component-state ,power)))))
+         (bounds-expr `((inclusion-lower . ,(plist-get plist :inclusion-lower))
+                           (inclusion-upper . ,(plist-get plist :inclusion-upper))))
         (inverter
          `((category . inverter)
            (type     . battery)
@@ -166,6 +197,7 @@
                          `(interval . ,interval)
                          `(data     . ,(inverter-data-maker
                                         `((id . ,id)
+                                          ,@bounds-expr
                                           ,@power-expr
                                           ,@config)
                                         inverter-defaults)))))))

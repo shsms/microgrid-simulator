@@ -202,7 +202,14 @@ impl Config {
         tokio::spawn(async move {
             loop {
                 config.update_state();
-                tokio::time::sleep(Duration::from_secs(1)).await;
+                let update_interval = config
+                    .ctx
+                    .borrow_mut()
+                    .intern("state-update-interval-ms")
+                    .get()
+                    .and_then(|x| x.as_int())
+                    .unwrap_or(2000) as u64;
+                tokio::time::sleep(Duration::from_millis(update_interval)).await;
             }
         });
     }
@@ -293,11 +300,16 @@ Invalid socket-addr.  Add a config line in this format:
 
     pub fn set_power_active(&self, component_id: u64, power: f32) -> Result<(), Error> {
         let func = self.ctx.borrow_mut().intern("set-power-active");
-        self.ctx.borrow_mut().funcall(
+        let res = self.ctx.borrow_mut().funcall(
             &func,
             &list![(component_id as i64).into(), (power as f64).into()]?,
         )?;
 
+        if !res.null() {
+            return Err(
+                Error::new(tulisp::ErrorKind::Undefined, res.as_string()?).with_span(res.span())
+            );
+        }
         Ok(())
     }
 
