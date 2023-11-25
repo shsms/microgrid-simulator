@@ -1,6 +1,4 @@
 (defun make-inv-bat-chain (&rest plist)
-  (when (not (boundp 'state-update-functions))
-    (setq state-update-functions nil))
   (let* ((no-meter (plist-get plist :no-meter))
          (bat-config (plist-get plist :bat-config))
          (inv-config (plist-get plist :inv-config))

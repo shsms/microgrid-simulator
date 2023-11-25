@@ -4,6 +4,7 @@
 (setq comp--id--counter 1000)
 (setq connections-alist nil)
 (setq components-alist nil)
+(setq state-update-functions nil)
 
 
 (defun get-comp-id ()
