@@ -1,4 +1,6 @@
 (defun make-inv-bat-chain (&rest plist)
+  (when (not (boundp 'state-update-functions))
+    (setq state-update-functions nil))
   (let* ((no-meter (plist-get plist :no-meter))
          (bat-config (plist-get plist :bat-config))
          (inv-config (plist-get plist :inv-config))
@@ -28,7 +30,6 @@
          (bat-soc-expr `(setq ,bat-soc-symbol
                               (+ ,initial-soc
                                  (* 100.0 (/ ,inv-energy-symbol ,capacity)))))
-         (bat-soc-expr-symbol (soc-expr-symbol-from-id inv-id))
 
          (bat-incl-lower (alist-get 'inclusion-lower bat-config-alist))
          (bat-incl-upper (alist-get 'inclusion-upper bat-config-alist))
@@ -59,8 +60,7 @@
                                                              1.2
                                                              0.0))
                                        ,bat-incl-upper)))
-         (bat-incl-lower-expr-symbol (inclusion-lower-expr-symbol-from-id inv-id))
-         (bat-incl-upper-expr-symbol (inclusion-upper-expr-symbol-from-id inv-id))
+
          (battery (make-battery :id bat-id
                                 :power inv-power-symbol
                                 :soc bat-soc-symbol
@@ -76,9 +76,18 @@
       (eval `(setq ,inv-energy-symbol 0.0))
       (eval `(setq ,bat-soc-symbol ,initial-soc)))
 
-    (eval `(setq ,bat-soc-expr-symbol bat-soc-expr))
-    (eval `(setq ,bat-incl-lower-expr-symbol bat-incl-lower-expr))
-    (eval `(setq ,bat-incl-upper-expr-symbol bat-incl-upper-expr))
+    (setq state-update-functions
+          (cons (list 'lambda '(ms-since-last-call)
+                      `(eval (setq ,inv-energy-symbol
+                                   (+ ,inv-energy-symbol ;; ->> ?
+                                      (* ,inv-power-symbol
+                                         (/ ms-since-last-call
+                                            ,(* 60.0 60.0 1000.0))))))
+                      `(eval ,bat-soc-expr)
+                      `(eval ,bat-incl-lower-expr)
+                      `(eval ,bat-incl-upper-expr))
+                state-update-functions))
+
     (eval bat-incl-lower-expr)
     (eval bat-incl-upper-expr)
 

@@ -27,9 +27,7 @@ pub struct Config {
     stream_methods: Rc<RefCell<HashMap<u64, (TulispObject, u64)>>>,
 
     /// Component ID -> last power update time.
-    set_power_times: Rc<RefCell<HashMap<u64, std::time::Instant>>>,
-
-    start_time: std::time::Instant,
+    last_formula_update_time: Rc<RefCell<std::time::Instant>>,
 }
 
 // Tokio is configured to use the current_thread runtime, so it is not unsafe to
@@ -145,13 +143,12 @@ impl Config {
             log::error!("Tulisp error:\n{}", e.format(&ctx));
             e
         });
-
+        let now = std::time::Instant::now();
         Self {
             filename: filename.to_string(),
             ctx: Rc::new(RefCell::new(ctx)),
             stream_methods: Rc::new(RefCell::new(HashMap::new())),
-            set_power_times: Rc::new(RefCell::new(HashMap::new())),
-            start_time: std::time::Instant::now(),
+            last_formula_update_time: Rc::new(RefCell::new(now)),
         }
     }
 
@@ -176,7 +173,12 @@ impl Config {
         *self.stream_methods.borrow_mut() = HashMap::new();
     }
 
-    pub fn start_watching(&self) {
+    pub fn start(&self) {
+        self.start_watching();
+        self.start_state_updates();
+    }
+
+    fn start_watching(&self) {
         let config = self.clone();
 
         tokio::spawn(async move {
@@ -193,6 +195,41 @@ impl Config {
                 config.reload();
             }
         });
+    }
+
+    fn start_state_updates(&self) {
+        let config = self.clone();
+        tokio::spawn(async move {
+            loop {
+                config.update_state();
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+        });
+    }
+
+    fn update_state(&self) {
+        let exprs_alist = self.ctx.borrow_mut().intern("state-update-functions").get();
+        let exprs_alist = exprs_alist
+            .map_err(|e| {
+                log::error!("Tulisp error:\n{}", e.format(&self.ctx.borrow()));
+                e
+            })
+            .unwrap();
+        let last_update_time = self.last_formula_update_time.borrow();
+        let now = std::time::Instant::now();
+
+        for func in exprs_alist.base_iter() {
+            self.ctx
+                .borrow_mut()
+                .funcall(
+                    &func,
+                    &list![(now.duration_since(*last_update_time).as_millis() as i64).into()]
+                        .unwrap(),
+                )
+                .unwrap();
+        }
+        drop(last_update_time);
+        *self.last_formula_update_time.borrow_mut() = now;
     }
 
     pub fn socket_addr(&self) -> String {
@@ -256,21 +293,9 @@ Invalid socket-addr.  Add a config line in this format:
 
     pub fn set_power_active(&self, component_id: u64, power: f32) -> Result<(), Error> {
         let func = self.ctx.borrow_mut().intern("set-power-active");
-        let last_update_time = self
-            .set_power_times
-            .borrow()
-            .get(&component_id)
-            .unwrap_or(&self.start_time)
-            .clone();
-        let now = std::time::Instant::now();
-        self.set_power_times.borrow_mut().insert(component_id, now);
         self.ctx.borrow_mut().funcall(
             &func,
-            &list![
-                (component_id as i64).into(),
-                (power as f64).into(),
-                (now.duration_since(last_update_time).as_millis() as i64).into()
-            ]?,
+            &list![(component_id as i64).into(), (power as f64).into()]?,
         )?;
 
         Ok(())

@@ -22,24 +22,12 @@
   (intern (format "component-soc-%s" id)))
 
 
-(defun soc-expr-symbol-from-id (id)
-  (intern (format "component-soc-expr-%s" id)))
-
-
 (defun inclusion-upper-symbol-from-id (id)
   (intern (format "component-inclusion-upper-%s" id)))
 
 
 (defun inclusion-lower-symbol-from-id (id)
   (intern (format "component-inclusion-lower-%s" id)))
-
-
-(defun inclusion-lower-expr-symbol-from-id (id)
-  (intern (format "component-inclusion-lower-expr-%s" id)))
-
-
-(defun inclusion-upper-expr-symbol-from-id (id)
-  (intern (format "component-inclusion-upper-expr-%s" id)))
 
 
 (defun add-to-connections-alist (id-from id-to)
@@ -87,19 +75,9 @@
                         (setq p3-expr (cons '+ p3-expr))))))
 
 
-(defun set-power-active (id power ms-since-last-update)
+(defun set-power-active (id power)
   (let* ((power-symbol (power-symbol-from-id id))
-         (energy-symbol (energy-symbol-from-id id))
-         (bat-soc-expr (eval (soc-expr-symbol-from-id id)))
-         (bat-incl-lower-expr (eval (inclusion-lower-expr-symbol-from-id id)))
-         (bat-incl-upper-expr (eval (inclusion-upper-expr-symbol-from-id id)))
-         (original-power (eval power-symbol))
-         (hours (/ ms-since-last-update 3600.0 1000.0)))
-
-    (eval `(setq ,energy-symbol (+ ,energy-symbol (* ,original-power ,hours))))
-    (eval bat-soc-expr)
-    (eval bat-incl-lower-expr)
-    (eval bat-incl-upper-expr)
+         (original-power (eval power-symbol)))
 
     (eval `(setq ,power-symbol power))
 

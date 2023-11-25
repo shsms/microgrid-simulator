@@ -11,7 +11,7 @@ async fn main() {
         .unwrap();
 
     let config = lisp::Config::new("config.lisp");
-    config.start_watching();
+    config.start();
     let socket_addr = config.socket_addr();
     log::info!("Server listening on {}", socket_addr);
 
