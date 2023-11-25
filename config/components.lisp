@@ -31,6 +31,8 @@
          (bat-incl-lower-symbol (inclusion-lower-symbol-from-id bat-id))
          (bat-incl-upper-symbol (inclusion-upper-symbol-from-id bat-id))
 
+         (bounds-check-func-symbol (bounds-check-func-symbol-from-id inv-id))
+
          (soc-lower (alist-get 'soc-lower bat-config-alist))
          (soc-upper (alist-get 'soc-upper bat-config-alist))
 
@@ -68,7 +70,12 @@
     (when (not (boundp inv-power-symbol))
       (eval `(setq ,inv-power-symbol initial-power))
       (eval `(setq ,inv-energy-symbol 0.0))
-      (eval `(setq ,bat-soc-symbol ,initial-soc)))
+      (eval `(setq ,bat-soc-symbol ,initial-soc))
+      (eval `(setq ,bounds-check-func-symbol
+                   (list 'lambda '(power)
+                         `(<= ,bat-incl-lower-symbol
+                              power
+                              ,bat-incl-upper-symbol)))))
 
     (setq state-update-functions
           (cons (list 'lambda '(ms-since-last-call)
