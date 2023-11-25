@@ -10,20 +10,21 @@
 (setq ac-voltage '(230.0 230.0 230.0))
 
 
-(setq battery-interval 500)
-(setq inverter-interval 500)
+(setq battery-interval 200)
+(setq inverter-interval 200)
 (setq meter-interval 200)
 (setq ev-charger-interval 1500)
 
 
-(setq battery-defaults '((initial-soc     . 10.0)
-                         (soc-lower       . 10.0)
-                         (soc-upper       . 90.0)
-                         (capacity        . 92000.0)
-                         (voltage         . 800.0)
-                         (rated-bounds    . (-30000.0 30000.0))
-                         (component-state . idle)
-                         (relay-state     . closed)))
+(setq battery-defaults '((initial-soc      . 10.0)
+                         (soc-lower        . 10.0)
+                         (soc-upper        . 90.0)
+                         (capacity         . 92000.0)
+                         (voltage          . 800.0)
+                         (rated-bounds     . (-30000.0 30000.0))
+                         (exclusion-bounds . (0.0 0.0))
+                         (component-state  . idle)
+                         (relay-state      . closed)))
 
 
 (setq inverter-defaults `((component-state . idle)
