@@ -86,7 +86,11 @@
                                             ,(* 60.0 60.0 1000.0))))))
                       `(eval ,bat-soc-expr)
                       `(eval ,bat-incl-lower-expr)
-                      `(eval ,bat-incl-upper-expr))
+                      `(eval ,bat-incl-upper-expr)
+                      `(cond ((< ,inv-power-symbol ,bat-incl-lower-symbol)
+                              (setq ,inv-power-symbol ,bat-incl-lower-symbol))
+                             ((> ,inv-power-symbol ,bat-incl-upper-symbol)
+                              (setq ,inv-power-symbol ,bat-incl-upper-symbol))))
                 state-update-functions))
 
     (eval bat-incl-lower-expr)
