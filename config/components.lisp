@@ -18,7 +18,10 @@
          (bat-soc-symbol (soc-symbol-from-id bat-id))
          (bat-soc-expr `(setq ,bat-soc-symbol
                               (+ ,initial-soc
-                                 (* 100.0 (/ ,inv-energy-symbol ,capacity)))))
+                                 ;; limit to 1 decimal place
+                                 (/ (fround
+                                     (* 1000.0 (/ ,inv-energy-symbol ,capacity)))
+                                    10.0))))
 
          (bat-rated-bounds (or (alist-get 'rated-bounds bat-config-alist) '(0.0 0.0)))
          (inv-rated-bounds (or (alist-get 'rated-bounds inv-config-alist) '(0.0 0.0)))
