@@ -60,7 +60,7 @@
   (let ((expr ()))
     (dolist (successor successors)
       (if-let ((power (alist-get 'power successor)))
-        (setq expr (cons power expr))))
+          (setq expr (cons power expr))))
     (when expr (cons '+ expr))))
 
 
@@ -70,10 +70,10 @@
         (p3-expr ()))
     (dolist (successor successors)
       (if-let ((current (alist-get 'current successor)))
-        (progn
-          (setq p1-expr (cons `(nth 0 ,current) p1-expr))
-          (setq p2-expr (cons `(nth 1 ,current) p2-expr))
-          (setq p3-expr (cons `(nth 2 ,current) p3-expr)))))
+          (progn
+            (setq p1-expr (cons `(nth 0 ,current) p1-expr))
+            (setq p2-expr (cons `(nth 1 ,current) p2-expr))
+            (setq p3-expr (cons `(nth 2 ,current) p3-expr)))))
     (when p1-expr (list 'list
                         (setq p1-expr (cons '+ p1-expr))
                         (setq p2-expr (cons '+ p2-expr))
@@ -95,8 +95,8 @@
                               original-power)))
           nil)
         (let ((err (format "Requested power %f is out of bounds for component id %d" power id)))
-        (log.warn err)
-        err))))
+          (log.warn err)
+          err))))
 
 
 (defun component-data-maker (method data-alist defaults-alist keys)

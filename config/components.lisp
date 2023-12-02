@@ -139,30 +139,30 @@
 
 (defun make-battery (&rest plist)
   (let* ((id (or (plist-get plist :id) (get-comp-id)))
-        (interval (or (plist-get plist :interval) battery-interval))
-        (power (plist-get plist :power))
-        (config (plist-get plist :config))
-        (power-expr (when power
-                      `((power . ,power)
-                        (component-state . (power->component-state ,power)))))
-        (soc-bounds-expr `((soc . ,(plist-get plist :soc))
-                           (inclusion-lower . ,(plist-get plist :inclusion-lower))
-                           (inclusion-upper . ,(plist-get plist :inclusion-upper))
-                           (exclusion-lower . ,(plist-get plist :exclusion-lower))
-                           (exclusion-upper . ,(plist-get plist :exclusion-upper))))
-        (battery
-         `((category . battery)
-           (name     . ,(format "bat-%s" id))
-           (id       . ,id)
-           ,@power-expr
-           (stream   . ,(list
-                         `(interval . ,interval)
-                         `(data     . ,(battery-data-maker
-                                        `((id    . ,id)
-                                          ,@soc-bounds-expr
-                                          ,@power-expr
-                                          ,@config)
-                                        battery-defaults)))))))
+         (interval (or (plist-get plist :interval) battery-interval))
+         (power (plist-get plist :power))
+         (config (plist-get plist :config))
+         (power-expr (when power
+                       `((power . ,power)
+                         (component-state . (power->component-state ,power)))))
+         (soc-bounds-expr `((soc . ,(plist-get plist :soc))
+                            (inclusion-lower . ,(plist-get plist :inclusion-lower))
+                            (inclusion-upper . ,(plist-get plist :inclusion-upper))
+                            (exclusion-lower . ,(plist-get plist :exclusion-lower))
+                            (exclusion-upper . ,(plist-get plist :exclusion-upper))))
+         (battery
+          `((category . battery)
+            (name     . ,(format "bat-%s" id))
+            (id       . ,id)
+            ,@power-expr
+            (stream   . ,(list
+                          `(interval . ,interval)
+                          `(data     . ,(battery-data-maker
+                                         `((id    . ,id)
+                                           ,@soc-bounds-expr
+                                           ,@power-expr
+                                           ,@config)
+                                         battery-defaults)))))))
     (add-to-components-alist battery)
     battery))
 
@@ -180,30 +180,30 @@
 
 (defun make-battery-inverter (&rest plist)
   (let* ((id (or (plist-get plist :id) (get-comp-id)))
-        (interval (or (plist-get plist :interval) inverter-interval))
-        (power (plist-get plist :power))
-        (config (plist-get plist :config))
-        (successors (plist-get plist :successors))
-        (power-expr (when power
-                      `((power . ,power)
-                        (current . (ac-current-from-power ,power))
-                        (component-state . (power->component-state ,power)))))
+         (interval (or (plist-get plist :interval) inverter-interval))
+         (power (plist-get plist :power))
+         (config (plist-get plist :config))
+         (successors (plist-get plist :successors))
+         (power-expr (when power
+                       `((power . ,power)
+                         (current . (ac-current-from-power ,power))
+                         (component-state . (power->component-state ,power)))))
          (bounds-expr `((inclusion-lower . ,(plist-get plist :inclusion-lower))
-                           (inclusion-upper . ,(plist-get plist :inclusion-upper))))
-        (inverter
-         `((category . inverter)
-           (type     . battery)
-           (name     . ,(format "inv-bat-%s" id))
-           (id       . ,id)
-           ,@power-expr
-           (stream   . ,(list
-                         `(interval . ,interval)
-                         `(data     . ,(inverter-data-maker
-                                        `((id . ,id)
-                                          ,@bounds-expr
-                                          ,@power-expr
-                                          ,@config)
-                                        inverter-defaults)))))))
+                        (inclusion-upper . ,(plist-get plist :inclusion-upper))))
+         (inverter
+          `((category . inverter)
+            (type     . battery)
+            (name     . ,(format "inv-bat-%s" id))
+            (id       . ,id)
+            ,@power-expr
+            (stream   . ,(list
+                          `(interval . ,interval)
+                          `(data     . ,(inverter-data-maker
+                                         `((id . ,id)
+                                           ,@bounds-expr
+                                           ,@power-expr
+                                           ,@config)
+                                         inverter-defaults)))))))
     (add-to-components-alist inverter)
     (connect-successors id successors)
     inverter))
