@@ -76,22 +76,22 @@
                                           :config inv-config)))
 
     (when (not (boundp inv-power-symbol))
-      (eval `(setq ,inv-power-symbol initial-power))
-      (eval `(setq ,inv-energy-symbol 0.0))
-      (eval `(setq ,bat-soc-symbol ,initial-soc)))
+      (set inv-power-symbol initial-power)
+      (set inv-energy-symbol 0.0)
+      (set bat-soc-symbol initial-soc))
 
-    (eval `(setq ,bounds-check-func-symbol
-                 (list 'lambda '(power)
-                       `(and (<= ,bat-incl-lower-symbol
+    (set bounds-check-func-symbol
+         (list 'lambda '(power)
+               `(and (<= ,bat-incl-lower-symbol
+                         power
+                         ,bat-incl-upper-symbol)
+                     (<= ,inv-rated-lower
+                         power
+                         ,inv-rated-upper)
+                     (or (equal power 0.0)
+                         (not (< ,bat-excl-lower
                                  power
-                                 ,bat-incl-upper-symbol)
-                             (<= ,inv-rated-lower
-                                 power
-                                 ,inv-rated-upper)
-                             (or (equal power 0.0)
-                                 (not (< ,bat-excl-lower
-                                         power
-                                         ,bat-excl-upper)))))))
+                                 ,bat-excl-upper))))))
 
     (setq state-update-functions
           (cons (list 'lambda '(ms-since-last-call)

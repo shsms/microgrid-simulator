@@ -226,13 +226,15 @@ impl Config {
         let now = std::time::Instant::now();
 
         for func in exprs_alist.base_iter() {
-            self.ctx
-                .borrow_mut()
-                .funcall(
-                    &func,
-                    &list![(now.duration_since(*last_update_time).as_millis() as i64).into()]
-                        .unwrap(),
-                )
+            let res = self.ctx.borrow_mut().funcall(
+                &func,
+                &list![(now.duration_since(*last_update_time).as_millis() as i64).into()].unwrap(),
+            );
+            let _ = res
+                .map_err(|e| {
+                    log::error!("Tulisp error:\n{}", e.format(&self.ctx.borrow()));
+                    e
+                })
                 .unwrap();
         }
         drop(last_update_time);
@@ -306,9 +308,7 @@ Invalid socket-addr.  Add a config line in this format:
         )?;
 
         if !res.null() {
-            return Err(
-                Error::new(tulisp::ErrorKind::Undefined, res.as_string()?).with_span(res.span())
-            );
+            return Err(Error::new(tulisp::ErrorKind::Undefined, res.as_string()?).with_trace(res));
         }
         Ok(())
     }

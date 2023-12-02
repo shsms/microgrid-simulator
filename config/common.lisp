@@ -87,7 +87,7 @@
 
     (if (funcall bounds-check-func power)
         (progn
-          (eval `(setq ,power-symbol power))
+          (set power-symbol power)
           (when (not (equal original-power power))
             (log.info (format "Setting power for component %d to %f (was %f))"
                               id
