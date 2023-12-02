@@ -46,10 +46,7 @@
 (make-grid
  :id 1
  :successors (list
-              (make-meter
-               :id 2
-               :successors (list
-                            (make-inv-bat-chain
-                             :bat-config '((initial-soc . 70)))
-                            (make-inv-bat-chain
-                             :no-meter t)))))
+              (make-inv-bat-chain :bat-config '((initial-soc . 70)))
+              (make-inv-bat-chain)
+              ;; consumer
+              (make-meter :power 50000.0)))
