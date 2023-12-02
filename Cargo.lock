@@ -1101,7 +1101,7 @@ checksum = "3528ecfd12c466c6f163363caf2d02a71161dd5e1cc6ae7b34207ea2d42d81ed"
 [[package]]
 name = "tulisp"
 version = "0.13.1"
-source = "git+https://github.com/shsms/tulisp#20da7f5d38c75b33a41a30fd11670c578d1f356c"
+source = "git+https://github.com/shsms/tulisp#43129dec3a2b467176167702cd9b9079958ebd9e"
 dependencies = [
  "tulisp-proc-macros",
 ]

@@ -219,7 +219,7 @@ impl Config {
         let exprs_alist = exprs_alist
             .map_err(|e| {
                 log::error!("Tulisp error:\n{}", e.format(&self.ctx.borrow()));
-                e
+                panic!("Update state function failed");
             })
             .unwrap();
         let last_update_time = self.last_formula_update_time.borrow();
@@ -230,12 +230,11 @@ impl Config {
                 &func,
                 &list![(now.duration_since(*last_update_time).as_millis() as i64).into()].unwrap(),
             );
-            let _ = res
-                .map_err(|e| {
-                    log::error!("Tulisp error:\n{}", e.format(&self.ctx.borrow()));
-                    e
-                })
-                .unwrap();
+            res.map_err(|e| {
+                log::error!("Tulisp error:\n{}", e.format(&self.ctx.borrow()));
+                panic!("Update state function failed");
+            })
+            .unwrap();
         }
         drop(last_update_time);
         *self.last_formula_update_time.borrow_mut() = now;
