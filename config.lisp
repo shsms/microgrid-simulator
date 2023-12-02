@@ -17,7 +17,7 @@
 (setq ev-charger-interval 1500)
 
 
-(setq battery-defaults '((initial-soc      . 10.0)
+(setq battery-defaults '((initial-soc      . 90.0)
                          (soc-lower        . 10.0)
                          (soc-upper        . 90.0)
                          (capacity         . 92000.0)
