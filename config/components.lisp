@@ -261,10 +261,12 @@
 (defun make-grid (&rest plist)
   (let ((id (or (plist-get plist :id) (get-comp-id)))
         (successors (plist-get plist :successors))
+        (rated-fuse-current (plist-get plist :rated-fuse-current))
         (grid
          `((category . grid)
            (id       . ,id)
-           (name     . "grid"))))
+           (name     . "grid")
+           (rated-fuse-current . ,rated-fuse-current))))
     (add-to-components-alist grid)
     (connect-successors id successors)
     grid))

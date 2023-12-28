@@ -9,8 +9,8 @@ use crate::proto::{
         },
     },
     microgrid::{
-        battery, component, component_data, ev_charger, inverter, meter, Component, ComponentData,
-        ComponentList, Connection, ConnectionList,
+        battery, component, component_data, ev_charger, grid, inverter, meter, Component,
+        ComponentData, ComponentList, Connection, ConnectionList,
     },
 };
 use prost_types::Timestamp;
@@ -52,6 +52,12 @@ macro_rules! alist_get_as {
 macro_rules! alist_get_f32 {
     ($ctx: expr, $rest:expr, $key:expr) => {
         alist_get_as!($ctx, $rest, $key, eval ++ try_float).unwrap_or_default() as f32
+    };
+}
+
+macro_rules! alist_get_u32 {
+    ($ctx: expr, $rest:expr, $key:expr) => {
+        alist_get_as!($ctx, $rest, $key, eval ++ try_int).unwrap_or_default() as u32
     };
 }
 
@@ -120,6 +126,9 @@ fn make_component_from_alist(
             .map(|typ| component::Metadata::Battery(battery::Metadata { r#type: typ as i32 })),
         ComponentCategory::EvCharger => enum_from_alist::<EvChargerType>(ctx, alist, "type", false)
             .map(|typ| component::Metadata::EvCharger(ev_charger::Metadata { r#type: typ as i32 })),
+        ComponentCategory::Grid => Some(component::Metadata::Grid(grid::Metadata {
+            rated_fuse_current: alist_get_u32!(ctx, alist, "rated-fuse-current"),
+        })),
         _ => None,
     };
 
