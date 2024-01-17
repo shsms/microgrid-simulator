@@ -12,6 +12,9 @@
          (bat-config-alist `(,@bat-config ,@battery-defaults))
          (inv-config-alist `(,@inv-config ,@inverter-defaults))
 
+         (is-healthy (and (is-healthy-battery bat-config-alist)
+                          (is-healthy-inverter inv-config-alist)))
+
          (capacity (alist-get 'capacity bat-config-alist))
          (initial-soc (alist-get 'initial-soc bat-config-alist))
 
@@ -62,7 +65,7 @@
                                          ,bat-rated-upper)))
 
          (battery (make-battery :id bat-id
-                                :power inv-power-symbol
+                                :power (when is-healthy inv-power-symbol)
                                 :soc bat-soc-symbol
                                 :inclusion-lower bat-incl-lower-symbol
                                 :inclusion-upper bat-incl-upper-symbol
@@ -70,7 +73,7 @@
                                 :exclusion-upper bat-excl-upper
                                 :config bat-config))
          (inverter (make-battery-inverter :id inv-id
-                                          :power inv-power-symbol
+                                          :power (when is-healthy inv-power-symbol)
                                           :inclusion-lower inv-rated-lower
                                           :inclusion-upper inv-rated-upper
                                           :config inv-config)))
@@ -80,18 +83,25 @@
       (set inv-energy-symbol 0.0)
       (set bat-soc-symbol initial-soc))
 
+    (when (not is-healthy)
+      (set inv-power-symbol 0.0))
+
     (set bounds-check-func-symbol
-         (list 'lambda '(power)
-               `(and (<= ,bat-incl-lower-symbol
-                         power
-                         ,bat-incl-upper-symbol)
-                     (<= ,inv-rated-lower
-                         power
-                         ,inv-rated-upper)
-                     (or (equal power 0.0)
-                         (not (< ,bat-excl-lower
-                                 power
-                                 ,bat-excl-upper))))))
+         (if is-healthy
+             (list 'lambda '(power)
+                   `(and (<= ,bat-incl-lower-symbol
+                             power
+                             ,bat-incl-upper-symbol)
+                         (<= ,inv-rated-lower
+                             power
+                             ,inv-rated-upper)
+                         (or (equal power 0.0)
+                             (not (< ,bat-excl-lower
+                                     power
+                                     ,bat-excl-upper)))))
+             (list 'lambda '(power)
+                   (log.error "inverter-battery chain is unhealthy")
+                   nil)))
 
     (setq state-update-functions
           (cons (list 'lambda '(ms-since-last-call)

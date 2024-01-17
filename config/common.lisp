@@ -118,11 +118,25 @@
     (mapcar '(lambda (voltage) (/ per-phase-power voltage)) ac-voltage)))
 
 
+(defun is-healthy-battery (bat)
+  (let ((comp-state (alist-get 'component-state bat))
+        (relay-state (alist-get 'relay-state bat)))
+    (and (or (eq comp-state 'idle)
+             (eq comp-state 'charging)
+             (eq comp-state 'discharging))
+         (eq relay-state 'closed))))
+
+(defun is-healthy-inverter (inv)
+  (let ((comp-state (alist-get 'component-state inv)))
+    (or (eq comp-state 'idle)
+        (eq comp-state 'charging)
+        (eq comp-state 'discharging))))
+
 (defun power->component-state (power)
   (cond
     ((not (numberp power)) nil)
-    ((> power 0) 'charging)
-    ((< power 0) 'discharging)
+    ((> power 0.0) 'charging)
+    ((< power 0.0) 'discharging)
     (:else       'idle)))
 
 
