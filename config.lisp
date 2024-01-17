@@ -3,7 +3,7 @@
 
 
 (setq socket-addr "[::1]:8800")
-(setq retain-requests-duration-ms 5000)
+(setq retain-requests-duration-ms 60000)
 (setq state-update-interval-ms 3000)
 
 
@@ -48,6 +48,6 @@
  :rated-fuse-current 100
  :successors (list
               (make-inv-bat-chain :bat-config '((initial-soc . 70)))
-              (make-inv-bat-chain)
+              (make-inv-bat-chain :bat-config '((relay-state . closed)))
               ;; consumer
               (make-meter :power 50000.0)))
