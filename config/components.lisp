@@ -2,7 +2,6 @@
   (let* ((no-meter (plist-get plist :no-meter))
          (bat-config (plist-get plist :bat-config))
          (inv-config (plist-get plist :inv-config))
-         (initial-power (or (plist-get plist :initial-power) 0.0))
 
          (inv-id (get-comp-id))
          (bat-id (get-comp-id))
@@ -79,7 +78,7 @@
                                           :config inv-config)))
 
     (when (not (boundp inv-power-symbol))
-      (set inv-power-symbol initial-power)
+      (set inv-power-symbol 0.0)
       (set inv-energy-symbol 0.0)
       (set bat-soc-symbol initial-soc))
 
