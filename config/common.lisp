@@ -113,6 +113,12 @@
     (list 'lambda '(_) `(,method ,args-alist))))
 
 
+(defun quote-each-value (alist)
+  (let (new-list)
+    (dolist (item alist new-list)
+      (setq new-list (cons (cons (car item) `(quote ,(cdr item))) new-list)))))
+
+
 (defun ac-current-from-power (power)
   (let ((per-phase-power (/ power 3)))
     (mapcar '(lambda (voltage) (/ per-phase-power voltage)) ac-voltage)))

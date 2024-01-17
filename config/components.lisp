@@ -151,7 +151,7 @@
   (let* ((id (or (plist-get plist :id) (get-comp-id)))
          (interval (or (plist-get plist :interval) battery-interval))
          (power (plist-get plist :power))
-         (config (plist-get plist :config))
+         (config (quote-each-value (plist-get plist :config)))
          (power-expr (when power
                        `((power . ,power)
                          (component-state . (power->component-state ,power)))))
@@ -192,7 +192,7 @@
   (let* ((id (or (plist-get plist :id) (get-comp-id)))
          (interval (or (plist-get plist :interval) inverter-interval))
          (power (plist-get plist :power))
-         (config (plist-get plist :config))
+         (config (quote-each-value (plist-get plist :config)))
          (successors (plist-get plist :successors))
          (power-expr (when power
                        `((power . ,power)
