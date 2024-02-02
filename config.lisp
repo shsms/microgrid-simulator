@@ -49,8 +49,10 @@
 (make-grid
  :id 1
  :rated-fuse-current 100
- :successors (list
-              (make-inv-bat-chain :bat-config '((initial-soc . 70)))
-              (make-inv-bat-chain :bat-config '((relay-state . closed)))
-              ;; consumer
-              (make-meter :power 50000.0)))
+ :successors (list (make-meter
+                    :id 2
+                    :successors (list
+                                 (make-inv-bat-chain :bat-config '((initial-soc . 70)))
+                                 (make-inv-bat-chain)
+                                 ;; consumer
+                                 (make-meter :power 50000.0)))))
