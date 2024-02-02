@@ -7,7 +7,7 @@ use tonic::transport::Server;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
-    simplelog::SimpleLogger::init(simplelog::LevelFilter::Trace, simplelog::Config::default())
+    simplelog::SimpleLogger::init(simplelog::LevelFilter::Debug, simplelog::Config::default())
         .unwrap();
 
     let config = lisp::Config::new("config.lisp");

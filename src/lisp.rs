@@ -1,4 +1,6 @@
-use std::{any::Any, cell::RefCell, collections::HashMap, rc::Rc, str::FromStr, time::Duration};
+use std::{
+    any::Any, cell::RefCell, collections::HashMap, path::Path, rc::Rc, str::FromStr, time::Duration,
+};
 
 use crate::proto::{
     common::{
@@ -13,8 +15,8 @@ use crate::proto::{
         ComponentData, ComponentList, Connection, ConnectionList,
     },
 };
+use notify::{RecommendedWatcher, Watcher};
 use prost_types::Timestamp;
-use tokio_stream::StreamExt;
 use tulisp::{list, tulisp_fn, tulisp_fn_no_eval, Error, TulispContext, TulispObject};
 
 #[derive(Clone)]
@@ -189,20 +191,27 @@ impl Config {
 
     fn start_watching(&self) {
         let config = self.clone();
-
+        let filename = self.filename.clone();
         tokio::spawn(async move {
-            let inotify = inotify::Inotify::init().unwrap();
-            inotify
-                .watches()
-                .add(config.filename.clone(), inotify::WatchMask::MODIFY)
+            let mut watcher = RecommendedWatcher::new(
+                move |res: Result<notify::Event, notify::Error>| {
+                    if let Err(e) = res {
+                        log::error!("watch error: {:?}", e);
+                        return;
+                    }
+                    if let Ok(event) = res {
+                        if let notify::EventKind::Modify(_) = event.kind {
+                            config.reload();
+                        }
+                    }
+                },
+                notify::Config::default(),
+            )
+            .unwrap();
+            watcher
+                .watch(&Path::new(&filename), notify::RecursiveMode::NonRecursive)
                 .unwrap();
-
-            let mut buffer = [0; 1024];
-            let mut inotify_stream = inotify.into_event_stream(&mut buffer).unwrap();
-
-            while let Some(_) = inotify_stream.next().await {
-                config.reload();
-            }
+            std::future::pending::<()>().await;
         });
     }
 
