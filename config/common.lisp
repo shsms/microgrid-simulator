@@ -1,14 +1,19 @@
 ;; Reset variables to their initial state everytime the script is
 ;; reloaded, so that the same components and connections are not added
 ;; multiple times.
-(setq comp--id--counter 1000)
-(setq connections-alist nil)
-(setq components-alist nil)
-(setq state-update-functions nil)
-
+(defun reset-state ()
+  (setq timer--counter 0)
+  (setq comp--id--counter 1000)
+  (setq connections-alist nil)
+  (setq components-alist nil)
+  (setq state-update-functions nil))
 
 (defun get-comp-id ()
   (setq comp--id--counter (+ comp--id--counter 1)))
+
+
+(defun get-timer-id ()
+  (setq timer--counter (+ timer--counter 1)))
 
 
 (defun power-symbol-from-id (id)
@@ -83,7 +88,8 @@
 (defun set-power-active (id power)
   (let* ((power-symbol (power-symbol-from-id id))
          (bounds-check-func (eval (bounds-check-func-symbol-from-id id)))
-         (original-power (eval power-symbol)))
+         (original-power (eval power-symbol))
+         (power (ftruncate power)))
 
     (if (funcall bounds-check-func power)
         (progn
@@ -157,3 +163,26 @@
       ((< val start) 1.0)
       (t (+ shift (* (- 1.0 shift)
                      (expt base (- start val))))))))
+
+(defun repeat-every-impl (counter every-ms action ms-since-last-call)
+  (let ((count (+ (eval counter) ms-since-last-call)))
+    (set counter count)
+    (when (> count every-ms)
+      (funcall action)
+      (set counter 0))))
+
+(defun every (&rest plist)
+  (let* ((milliseconds (plist-get plist :milliseconds))
+         (action (plist-get plist :call))
+         (timer (intern (format "repeat-every-timer-%d" (get-timer-id)))))
+    (set timer 0)
+    (setq state-update-functions
+          (cons (list 'lambda '(ms-since-last-call)
+                      `(repeat-every-impl
+                        (quote ,timer)
+                        ,milliseconds
+                        ,action
+                        ms-since-last-call))
+                state-update-functions))
+    ))
+

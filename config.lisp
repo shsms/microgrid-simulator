@@ -1,6 +1,9 @@
-(load "config/common.lisp")
-(load "config/components.lisp")
+(unless (boundp 'mock-config-loaded)
+  (setq mock-config-loaded t)
+  (load "config/common.lisp")
+  (load "config/components.lisp"))
 
+(reset-state)
 
 (setq socket-addr "[::1]:8800")
 (setq retain-requests-duration-ms 60000)
