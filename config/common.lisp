@@ -1,11 +1,11 @@
 ;; Reset variables to their initial state everytime the script is
 ;; reloaded, so that the same components and connections are not added
 ;; multiple times.
-(setq comp--id--counter 1000)
-(setq connections-alist nil)
-(setq components-alist nil)
-(setq state-update-functions nil)
-
+(defun reset-state ()
+  (setq comp--id--counter 1000)
+  (setq connections-alist nil)
+  (setq components-alist nil)
+  (setq state-update-functions nil))
 
 (defun get-comp-id ()
   (setq comp--id--counter (+ comp--id--counter 1)))
