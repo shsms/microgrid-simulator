@@ -83,7 +83,8 @@
 (defun set-power-active (id power)
   (let* ((power-symbol (power-symbol-from-id id))
          (bounds-check-func (eval (bounds-check-func-symbol-from-id id)))
-         (original-power (eval power-symbol)))
+         (original-power (eval power-symbol))
+         (power (ftruncate power)))
 
     (if (funcall bounds-check-func power)
         (progn
