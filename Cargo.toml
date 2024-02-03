@@ -13,6 +13,7 @@ tulisp = "0.15.0"
 notify = "6.1.1"
 log = "0.4.20"
 simplelog = "0.12.1"
+rand = "0.8.5"
 
 [build-dependencies]
 tonic-build = "0.10.2"

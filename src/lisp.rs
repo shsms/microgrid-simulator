@@ -1,3 +1,4 @@
+use rand::Rng;
 use std::{
     any::Any, cell::RefCell, collections::HashMap, path::Path, rc::Rc, str::FromStr, time::Duration,
 };
@@ -606,5 +607,19 @@ fn add_functions(ctx: &mut TulispContext) {
     #[tulisp_fn(add_func = "ctx", name = "log.debug")]
     fn log_debug(msg: String) {
         log::debug!("{}", msg);
+    }
+
+    #[tulisp_fn(add_func = "ctx", name = "log.trace")]
+    fn log_trace(msg: String) {
+        log::trace!("{}", msg);
+    }
+
+    #[tulisp_fn(add_func = "ctx")]
+    fn random(limit: Option<i64>) -> i64 {
+        if let Some(limit) = limit {
+            rand::thread_rng().gen_range(0..limit)
+        } else {
+            rand::thread_rng().gen()
+        }
     }
 }

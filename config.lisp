@@ -7,7 +7,7 @@
 
 (setq socket-addr "[::1]:8800")
 (setq retain-requests-duration-ms 60000)
-(setq state-update-interval-ms 3000)
+(setq state-update-interval-ms 1000)
 
 
 (setq ac-frequency 50.0)
@@ -55,4 +55,14 @@
                                  (make-inv-bat-chain :bat-config '((initial-soc . 70)))
                                  (make-inv-bat-chain)
                                  ;; consumer
-                                 (make-meter :power 50000.0)))))
+                                 (make-meter :power 'consumer-power)))))
+
+(setq base-consumer-power 5000.0)
+(setq consumer-power base-consumer-power)
+
+(every
+ :milliseconds 5000
+ :call (lambda ()
+         (setq consumer-power
+               (* base-consumer-power
+                  (+ 1 (random 10))))))
