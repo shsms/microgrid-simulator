@@ -105,7 +105,7 @@
           err))))
 
 
-(defun component-data-maker (method data-alist defaults-alist keys)
+(defun component-data-maker (data-alist defaults-alist keys)
   (let ((data-alist (eval data-alist))
         (defaults-alist (eval defaults-alist))
         (args-alist))
@@ -116,7 +116,7 @@
         (if-let ((val (alist-get key defaults-alist)))
             (setq args-alist (cons (cons key `(quote ,val)) args-alist)))))
 
-    (list 'lambda '(_) `(,method ,args-alist))))
+    (list 'lambda '(_) `(quote ,args-alist))))
 
 
 (defun quote-each-value (alist)
