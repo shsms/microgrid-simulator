@@ -137,8 +137,7 @@
 ;;;;;;;;;;;;;;;
 
 (defmacro battery-data-maker (data-alist defaults-alist)
-  (component-data-maker 'battery-data
-                        data-alist
+  (component-data-maker data-alist
                         defaults-alist
                         '(id soc soc-upper soc-lower
                           capacity power voltage type
@@ -181,8 +180,7 @@
 ;;;;;;;;;;;;;;;
 
 (defmacro inverter-data-maker (data-alist defaults-alist)
-  (component-data-maker 'inverter-data
-                        data-alist
+  (component-data-maker data-alist
                         defaults-alist
                         '(id power current voltage component-state
                           inclusion-lower inclusion-upper)))
@@ -223,8 +221,7 @@
 ;;;;;;;;;;;;
 
 (defmacro meter-data-maker (data-alist defaults-alist)
-  (component-data-maker 'meter-data
-                        data-alist
+  (component-data-maker data-alist
                         defaults-alist
                         '(id power current voltage)))
 

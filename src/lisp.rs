@@ -1,7 +1,5 @@
 use rand::Rng;
-use std::{
-    any::Any, cell::RefCell, collections::HashMap, path::Path, rc::Rc, str::FromStr, time::Duration,
-};
+use std::{cell::RefCell, collections::HashMap, path::Path, rc::Rc, str::FromStr, time::Duration};
 
 use crate::proto::{
     common::{
@@ -18,7 +16,9 @@ use crate::proto::{
 };
 use notify::{RecommendedWatcher, Watcher};
 use prost_types::Timestamp;
-use tulisp::{list, tulisp_fn, tulisp_fn_no_eval, Error, TulispContext, TulispObject};
+use tulisp::{list, tulisp_fn, Error, TulispContext, TulispObject};
+
+type CompDataMaker = fn(&mut TulispContext, &TulispObject) -> Result<ComponentData, Error>;
 
 #[derive(Clone)]
 pub struct Config {
@@ -26,8 +26,8 @@ pub struct Config {
 
     pub(crate) ctx: Rc<RefCell<tulisp::TulispContext>>,
 
-    /// Component ID -> (ComponentData Method, Interval)
-    stream_methods: Rc<RefCell<HashMap<u64, (TulispObject, u64)>>>,
+    /// Component ID -> (Component's Data Method, Interval, To ComponentData Method)
+    stream_methods: Rc<RefCell<HashMap<u64, (TulispObject, u64, CompDataMaker)>>>,
 
     /// Component ID -> last power update time.
     last_formula_update_time: Rc<RefCell<std::time::Instant>>,
@@ -331,49 +331,71 @@ Invalid socket-addr.  Add a config line in this format:
         Ok(())
     }
 
+    fn get_conv_function(&self, component_id: u64, comp: &TulispObject) -> CompDataMaker {
+        match make_component_from_alist(&mut self.ctx.borrow_mut(), &comp)
+            .unwrap()
+            .category()
+        {
+            ComponentCategory::Battery => Self::battery_data,
+            ComponentCategory::Inverter => Self::inverter_data,
+            ComponentCategory::Meter => Self::meter_data,
+            ComponentCategory::EvCharger => Self::ev_charger_data,
+            _ => Err(Error::new(
+                tulisp::ErrorKind::Uninitialized,
+                format!("Invalid component category for component {}", component_id),
+            ))
+            .unwrap(),
+        }
+    }
+
     pub fn get_component_data(&self, component_id: u64) -> Result<(ComponentData, u64), Error> {
         let mut stream_methods = self.stream_methods.borrow_mut();
-        let (data_method, interval) = if let Some((data_method, interval)) =
-            stream_methods.get(&component_id)
-        {
-            (data_method.clone(), *interval)
-        } else {
-            let alists = self.ctx.borrow_mut().intern("components-alist").get()?;
-            let comp = alists
-                .base_iter()
-                .find(|x| {
-                    alist_get_as!(&mut self.ctx.borrow_mut(), &x, "id", as_int).unwrap() as u64
-                        == component_id
-                })
-                .expect(&format!("Component id {component_id} not found"));
+        let (data_method, interval, conv_function) =
+            if let Some((data_method, interval, conv_function)) = stream_methods.get(&component_id)
+            {
+                (data_method.clone(), *interval, *conv_function)
+            } else {
+                let alists = self.ctx.borrow_mut().intern("components-alist").get()?;
+                let comp = alists
+                    .base_iter()
+                    .find(|x| {
+                        alist_get_as!(&mut self.ctx.borrow_mut(), &x, "id", as_int).unwrap() as u64
+                            == component_id
+                    })
+                    .expect(&format!("Component id {component_id} not found"));
 
-            let stream = alist_get_as!(&mut self.ctx.borrow_mut(), &comp, "stream").unwrap();
+                let stream = alist_get_as!(&mut self.ctx.borrow_mut(), &comp, "stream").unwrap();
 
-            let interval =
-                alist_get_as!(&mut self.ctx.borrow_mut(), &stream, "interval", as_int).unwrap();
-            let data_method = alist_get_as!(&mut self.ctx.borrow_mut(), &stream, "data").unwrap();
+                let interval =
+                    alist_get_as!(&mut self.ctx.borrow_mut(), &stream, "interval", as_int).unwrap();
+                let data_method =
+                    alist_get_as!(&mut self.ctx.borrow_mut(), &stream, "data").unwrap();
 
-            stream_methods.insert(component_id, (data_method.clone(), interval as u64));
+                let conv_function = self.get_conv_function(component_id, &comp);
 
-            (data_method, interval as u64)
-        };
+                stream_methods.insert(
+                    component_id,
+                    (data_method.clone(), interval as u64, conv_function),
+                );
 
-        let comp_data = self
+                (data_method, interval as u64, conv_function)
+            };
+
+        let tulisp_data = self
             .ctx
             .borrow_mut()
-            .funcall(&data_method, &list!((component_id as i64).into())?)?
-            .as_any()?
-            .downcast_ref::<ComponentData>()
-            .unwrap()
-            .clone();
+            .funcall(&data_method, &list!((component_id as i64).into())?)
+            .unwrap();
+
+        let comp_data = conv_function(&mut self.ctx.borrow_mut(), &tulisp_data).unwrap();
 
         Ok((comp_data, interval as u64))
     }
 }
 
-fn add_functions(ctx: &mut TulispContext) {
-    #[tulisp_fn_no_eval(add_func = "ctx", name = "battery-data")]
-    fn battery_data(ctx: &mut TulispContext, alist: TulispObject) -> Result<Rc<dyn Any>, Error> {
+/// ComponentData methods
+impl Config {
+    fn battery_data(ctx: &mut TulispContext, alist: &TulispObject) -> Result<ComponentData, Error> {
         let id = alist_get_as!(ctx, &alist, "id", eval ++ as_int)? as u64;
         let capacity = alist_get_f32!(ctx, &alist, "capacity");
 
@@ -396,7 +418,7 @@ fn add_functions(ctx: &mut TulispContext) {
         let relay_state = enum_from_alist::<battery::RelayState>(ctx, &alist, "relay-state", true)
             .unwrap_or_default() as i32;
 
-        return Ok(Rc::new(ComponentData {
+        return Ok(ComponentData {
             ts: Some(Timestamp::from(std::time::SystemTime::now())),
             id,
             data: Some(component_data::Data::Battery(battery::Battery {
@@ -444,7 +466,7 @@ fn add_functions(ctx: &mut TulispContext) {
                     ..Default::default()
                 }),
             })),
-        }));
+        });
     }
 
     fn ac_from_alist(ctx: &mut TulispContext, alist: &TulispObject) -> Result<Ac, Error> {
@@ -468,7 +490,6 @@ fn add_functions(ctx: &mut TulispContext) {
                 ..Default::default()
             }),
             current: Some(Metric {
-                // TODO: what is a 3 phase current?  is this the sum of all 3 phases?
                 value: current.0 + current.1 + current.2,
                 ..Default::default()
             }),
@@ -521,47 +542,50 @@ fn add_functions(ctx: &mut TulispContext) {
         })
     }
 
-    #[tulisp_fn_no_eval(add_func = "ctx", name = "inverter-data")]
-    fn inverter_data(ctx: &mut TulispContext, alist: TulispObject) -> Result<Rc<dyn Any>, Error> {
+    fn inverter_data(
+        ctx: &mut TulispContext,
+        alist: &TulispObject,
+    ) -> Result<ComponentData, Error> {
         let id = alist_get_as!(ctx, &alist, "id", eval ++ as_int)? as u64;
 
         let component_state =
             enum_from_alist::<inverter::ComponentState>(ctx, &alist, "component-state", true)
                 .unwrap_or_default() as i32;
 
-        return Ok(Rc::new(ComponentData {
+        return Ok(ComponentData {
             ts: Some(Timestamp::from(std::time::SystemTime::now())),
             id,
             data: Some(component_data::Data::Inverter(inverter::Inverter {
                 state: Some(inverter::State { component_state }),
                 data: Some(inverter::Data {
-                    ac: Some(ac_from_alist(ctx, &alist)?),
+                    ac: Some(Self::ac_from_alist(ctx, &alist)?),
                     ..Default::default()
                 }),
                 ..Default::default()
             })),
-        }));
+        });
     }
 
-    #[tulisp_fn_no_eval(add_func = "ctx", name = "meter-data")]
-    fn meter_data(ctx: &mut TulispContext, alist: TulispObject) -> Result<Rc<dyn Any>, Error> {
+    fn meter_data(ctx: &mut TulispContext, alist: &TulispObject) -> Result<ComponentData, Error> {
         let id = alist_get_as!(ctx, &alist, "id", eval ++ as_int)? as u64;
 
-        return Ok(Rc::new(ComponentData {
+        return Ok(ComponentData {
             ts: Some(Timestamp::from(std::time::SystemTime::now())),
             id,
             data: Some(component_data::Data::Meter(meter::Meter {
                 data: Some(meter::Data {
-                    ac: Some(ac_from_alist(ctx, &alist)?),
+                    ac: Some(Self::ac_from_alist(ctx, &alist)?),
                     ..Default::default()
                 }),
                 ..Default::default()
             })),
-        }));
+        });
     }
 
-    #[tulisp_fn_no_eval(add_func = "ctx", name = "ev-charger-data")]
-    fn ev_charger_data(ctx: &mut TulispContext, alist: TulispObject) -> Result<Rc<dyn Any>, Error> {
+    fn ev_charger_data(
+        ctx: &mut TulispContext,
+        alist: &TulispObject,
+    ) -> Result<ComponentData, Error> {
         let id = alist_get_as!(ctx, &alist, "id", eval ++ as_int)? as u64;
 
         let component_state =
@@ -572,7 +596,7 @@ fn add_functions(ctx: &mut TulispContext) {
             enum_from_alist::<ev_charger::CableState>(ctx, &alist, "cable-state", true)
                 .unwrap_or_default() as i32;
 
-        return Ok(Rc::new(ComponentData {
+        return Ok(ComponentData {
             ts: Some(Timestamp::from(std::time::SystemTime::now())),
             id,
             data: Some(component_data::Data::EvCharger(ev_charger::EvCharger {
@@ -581,14 +605,16 @@ fn add_functions(ctx: &mut TulispContext) {
                     cable_state,
                 }),
                 data: Some(ev_charger::Data {
-                    ac: Some(ac_from_alist(ctx, &alist)?),
+                    ac: Some(Self::ac_from_alist(ctx, &alist)?),
                     ..Default::default()
                 }),
                 ..Default::default()
             })),
-        }));
+        });
     }
+}
 
+fn add_functions(ctx: &mut TulispContext) {
     #[tulisp_fn(add_func = "ctx", name = "log.info")]
     fn log_info(msg: String) {
         log::info!("{}", msg);
