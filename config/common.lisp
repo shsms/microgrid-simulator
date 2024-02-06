@@ -40,6 +40,10 @@
   (intern (format "component-bounds-check-func-%s" id)))
 
 
+(defun set-power-func-symbol-from-id (id)
+  (intern (format "component-set-power-func-%s" id)))
+
+
 (defun add-to-connections-alist (id-from id-to)
   (setq connections-alist (cons (cons id-from id-to)
                                 connections-alist)))
@@ -84,21 +88,57 @@
                         (setq p2-expr (cons '+ p2-expr))
                         (setq p3-expr (cons '+ p3-expr))))))
 
+(defun make-battery-bounds-check-expr (successors)
+  (let ((sum-incl-lower-expr ())
+        (sum-incl-upper-expr ())
+        (sum-excl-lower-expr ())
+        (sum-excl-upper-expr ()))
+    (dolist (successor successors)
+      (when-let ((is-healthy (alist-get 'is-healthy successor))
+               (incl-lower (alist-get 'inclusion-lower successor))
+               (incl-upper (alist-get 'inclusion-upper successor)))
+        (setq sum-incl-lower-expr (cons incl-lower sum-incl-lower-expr))
+        (setq sum-incl-upper-expr (cons incl-upper sum-incl-upper-expr)))
+      (when-let ((excl-lower (alist-get 'exclusion-lower successor))
+               (excl-upper (alist-get 'exclusion-upper successor)))
+        (setq sum-excl-lower-expr (cons excl-lower sum-excl-lower-expr))
+        (setq sum-excl-upper-expr (cons excl-upper sum-excl-upper-expr))))
+
+    (when sum-incl-lower-expr
+      (setq sum-incl-lower-expr (cons '+ sum-incl-lower-expr))
+      (setq sum-incl-upper-expr (cons '+ sum-incl-upper-expr))
+      )
+
+    (when sum-excl-lower-expr
+      (setq sum-excl-lower-expr (cons '+ sum-excl-lower-expr))
+      (setq sum-excl-upper-expr (cons '+ sum-excl-upper-expr))
+      )
+
+    (let ((check (list 'lambda '(power)
+          (when sum-incl-lower-expr
+            `(and (<= ,sum-incl-lower-expr power ,sum-incl-upper-expr)
+                  (or (equal power 0.0)
+                      ,(when sum-excl-lower-expr
+                         `(or (<= power ,sum-excl-lower-expr)
+                               (<= ,sum-excl-upper-expr power)))))))))
+      check)))
+
 
 (defun set-power-active (id power)
   (let* ((power-symbol (power-symbol-from-id id))
          (bounds-check-func (eval (bounds-check-func-symbol-from-id id)))
-         (original-power (eval power-symbol))
+         (set-power-func (eval (set-power-func-symbol-from-id id)))
+         ;; (original-power (eval power-symbol))
          (power (ftruncate power)))
 
     (if (funcall bounds-check-func power)
         (progn
-          (set power-symbol power)
-          (when (not (equal original-power power))
-            (log.info (format "Setting power for component %d to %f (was %f))"
-                              id
-                              power
-                              original-power)))
+          (funcall set-power-func power)
+          ;; (when (not (equal original-power power))
+          ;;   (log.info (format "Setting power for component %d to %f (was %f))"
+          ;;                     id
+          ;;                     power
+          ;;                     original-power)))
           nil)
         (let ((err (format "Requested power %f is out of bounds for component id %d" power id)))
           (log.warn err)
@@ -119,15 +159,11 @@
     (list 'lambda '(_) `(quote ,args-alist))))
 
 
-(defun quote-each-value (alist)
-  (let (new-list)
-    (dolist (item alist new-list)
-      (setq new-list (cons (cons (car item) `(quote ,(cdr item))) new-list)))))
-
-
 (defun ac-current-from-power (power)
-  (let ((per-phase-power (/ power 3)))
-    (mapcar '(lambda (voltage) (/ per-phase-power voltage)) ac-voltage)))
+  (if (numberp power)
+      (let ((per-phase-power (/ power 3)))
+        (mapcar '(lambda (voltage) (/ per-phase-power voltage)) ac-voltage))
+    '(0.0 0.0 0.0)))
 
 
 (defun is-healthy-battery (bat)
@@ -146,7 +182,7 @@
 
 (defun power->component-state (power)
   (cond
-    ((not (numberp power)) nil)
+    ((not (numberp power)) 'error)
     ((> power 0.0) 'charging)
     ((< power 0.0) 'discharging)
     (:else       'idle)))
