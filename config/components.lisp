@@ -87,11 +87,12 @@
             (is-healthy . ,is-healthy)
             (stream   . ,(list
                           `(interval . ,interval)
-                          `(data     . ,(battery-data-maker
-                                         `((id    . ,id)
-                                           ,@soc-bounds-expr
-                                           ,@power-expr)
-                                         config-alist)))))))
+                          (cons 'data
+                                (macroexpand '(battery-data-maker
+                                        `((id    . ,id)
+                                          ,@soc-bounds-expr
+                                          ,@power-expr)
+                                        config-alist))))))))
 
     (log.trace (format "Adding battery %s. Healthy: %s" id is-healthy))
 
@@ -168,11 +169,12 @@
             ,@power-expr
             (stream   . ,(list
                           `(interval . ,interval)
-                          `(data     . ,(inverter-data-maker
-                                         `((id . ,id)
-                                           ,@bounds-expr
-                                           ,@power-expr)
-                                         config-alist)))))))
+                          (cons 'data
+                                (macroexpand '(inverter-data-maker
+                                        `((id . ,id)
+                                          ,@bounds-expr
+                                          ,@power-expr)
+                                        config-alist))))))))
 
     (log.trace (format "Adding battery inverter %s. Healthy: %s" id is-healthy))
 
@@ -254,12 +256,13 @@
             ,@power-expr
             (stream   . ,(list
                           `(interval . ,interval)
-                          `(data     . ,(meter-data-maker
-                                         `((id    . ,id)
-                                           ,@current-expr
-                                           ,@power-expr
-                                           ,@config)
-                                         meter-defaults)))))))
+                          (cons 'data
+                                (macroexpand '(meter-data-maker
+                                        `((id    . ,id)
+                                          ,@current-expr
+                                          ,@power-expr
+                                          ,@config)
+                                        meter-defaults))))))))
 
     (log.trace (format "Adding meter %s" id))
 

@@ -384,8 +384,11 @@ Invalid socket-addr.  Add a config line in this format:
         let tulisp_data = self
             .ctx
             .borrow_mut()
-            .funcall(&data_method, &list!((component_id as i64).into())?)
-            .unwrap();
+            .funcall(&data_method, &list!((component_id as i64).into())?);
+        let tulisp_data = tulisp_data.map_err(|e| {
+            log::error!("Tulisp error:\n{}", e.format(&self.ctx.borrow()));
+            panic!();
+        })?;
 
         let comp_data = conv_function(&mut self.ctx.borrow_mut(), &tulisp_data);
         let comp_data = comp_data.map_err(|e| {
