@@ -7,7 +7,7 @@
 
 (setq socket-addr "[::1]:8800")
 (setq retain-requests-duration-ms 60000)
-(setq state-update-interval-ms 1000)
+(setq state-update-interval-ms 200)
 
 
 (setq ac-frequency 50.0)
@@ -20,7 +20,7 @@
 (setq ev-charger-interval 1500)
 
 
-(setq battery-defaults '((initial-soc      . 90.0)
+(setq battery-defaults '((initial-soc      . 50.0)
                          (soc-lower        . 10.0)
                          (soc-upper        . 90.0)
                          (capacity         . 92000.0)
@@ -68,7 +68,7 @@
                                           (make-battery-inverter
                                            :successors (list
                                                         (make-battery
-                                                         :config '((initial-soc . 50.0)
+                                                         :config '((initial-soc . 20.0)
                                                                    (relay-state . closed))
                                                          )))))
 
@@ -77,12 +77,12 @@
 
 
 
-(setq base-consumer-power 5000.0)
+(setq base-consumer-power 100.0)
 (setq consumer-power base-consumer-power)
 
 (every
- :milliseconds 5000
+ :milliseconds 1000
  :call (lambda ()
          (setq consumer-power
                (* base-consumer-power
-                  (+ 1 (random 10))))))
+                  (+ 1 (random 100))))))

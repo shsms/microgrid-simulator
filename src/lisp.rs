@@ -185,35 +185,43 @@ impl Config {
         *self.stream_methods.borrow_mut() = HashMap::new();
     }
 
-    pub fn start(&self) {
-        self.start_watching();
+    pub async fn start(self) {
         self.start_state_updates();
+        self.start_watching().await;
     }
 
-    fn start_watching(&self) {
-        let config = self.clone();
-        let filename = self.filename.clone();
-        tokio::spawn(async move {
-            let mut watcher = RecommendedWatcher::new(
-                move |res: Result<notify::Event, notify::Error>| {
-                    if let Err(e) = res {
-                        log::error!("watch error: {:?}", e);
-                        return;
-                    }
-                    if let Ok(event) = res {
-                        if let notify::EventKind::Modify(_) = event.kind {
-                            config.reload();
-                        }
-                    }
-                },
-                notify::Config::default(),
+    async fn start_watching(self) {
+        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+
+        let mut watcher = RecommendedWatcher::new(
+            move |res| {
+                futures::executor::block_on(async {
+                    tx.send(res).await.unwrap();
+                });
+            },
+            notify::Config::default(),
+        )
+        .unwrap();
+        watcher
+            .watch(
+                &Path::new(&self.filename),
+                notify::RecursiveMode::NonRecursive,
             )
             .unwrap();
-            watcher
-                .watch(&Path::new(&filename), notify::RecursiveMode::NonRecursive)
-                .unwrap();
-            std::future::pending::<()>().await;
-        });
+
+        while let Some(res) = rx.recv().await {
+            match res {
+                Ok(event) => {
+                    if let notify::EventKind::Modify(_) = event.kind {
+                        self.reload();
+                    }
+                }
+                Err(e) => {
+                    log::error!("watch error: {:?}", e);
+                    return;
+                }
+            }
+        }
     }
 
     fn start_state_updates(&self) {
