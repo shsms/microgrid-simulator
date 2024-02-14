@@ -36,11 +36,11 @@
          (rated-bounds (or (alist-get 'rated-bounds config-alist) '(0.0 0.0)))
          (excl-bounds (or (alist-get 'exclusion-bounds config-alist) '(0.0 0.0)))
 
-         (rated-lower (nth 0 rated-bounds))
-         (rated-upper (nth 1 rated-bounds))
+         (rated-lower (car rated-bounds))
+         (rated-upper (cadr rated-bounds))
 
-         (excl-lower (nth 0 excl-bounds))
-         (excl-upper (nth 1 excl-bounds))
+         (excl-lower (car excl-bounds))
+         (excl-upper (cadr excl-bounds))
 
          (incl-lower-symbol (inclusion-lower-symbol-from-id id))
          (incl-upper-symbol (inclusion-upper-symbol-from-id id))
@@ -145,8 +145,8 @@
 
          (rated-bounds (or (alist-get 'rated-bounds config-alist) '(0.0 0.0)))
 
-         (rated-lower (nth 0 rated-bounds))
-         (rated-upper (nth 1 rated-bounds))
+         (rated-lower (car rated-bounds))
+         (rated-upper (cadr rated-bounds))
 
          (is-healthy (is-healthy-inverter config-alist))
 
