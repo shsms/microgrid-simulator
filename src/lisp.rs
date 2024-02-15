@@ -16,9 +16,38 @@ use crate::proto::{
 };
 use notify::{RecommendedWatcher, Watcher};
 use prost_types::Timestamp;
-use tulisp::{destruct_bind, list, Error, ErrorKind, TulispContext, TulispObject};
+use tulisp::{destruct_bind, intern, list, Error, ErrorKind, TulispContext, TulispObject};
 
-type CompDataMaker = fn(&mut TulispContext, &TulispObject) -> Result<ComponentData, Error>;
+type CompDataMaker =
+    fn(&mut TulispContext, &TulispObject, &InternedSymbols) -> Result<ComponentData, Error>;
+
+intern! {
+    #[derive(Clone)]
+    pub(crate) struct InternedSymbols {
+        id: "id",
+        soc: "soc",
+        name: "name",
+        data: "data",
+        type_: "type",
+        power: "power",
+        stream: "stream",
+        voltage: "voltage",
+        current: "current",
+        category: "category",
+        interval: "interval",
+        capacity: "capacity",
+        soc_lower: "soc-lower",
+        soc_upper: "soc-upper",
+        relay_state: "relay-state",
+        cable_state: "cable-state",
+        inclusion_lower: "inclusion-lower",
+        inclusion_upper: "inclusion-upper",
+        exclusion_lower: "exclusion-lower",
+        exclusion_upper: "exclusion-upper",
+        component_state: "component-state",
+        rated_fuse_current: "rated-fuse-current",
+    }
+}
 
 #[derive(Clone)]
 pub struct Config {
@@ -31,6 +60,8 @@ pub struct Config {
 
     /// Component ID -> last power update time.
     last_formula_update_time: Rc<RefCell<std::time::Instant>>,
+
+    symbols: InternedSymbols,
 }
 
 // Tokio is configured to use the current_thread runtime, so it is not unsafe to
@@ -47,8 +78,7 @@ macro_rules! alist_get_as {
         out.and_then(|x| $ctx.eval_and_then(&x, |x| x.$as_fn()))
     }};
     ($ctx: expr, $rest:expr, $key:expr) => {{
-        let key = $ctx.intern($key);
-        tulisp::lists::alist_get($ctx, &key, $rest, None, None, None)
+        tulisp::lists::alist_get($ctx, $key, $rest, None, None, None)
     }};
 }
 
@@ -92,7 +122,7 @@ macro_rules! alist_get_3_phase {
 fn enum_from_alist<T: FromStr + Default>(
     ctx: &mut TulispContext,
     alist: &TulispObject,
-    key: &str,
+    key: &TulispObject,
     eval: bool,
 ) -> Option<T> {
     let val = if eval {
@@ -112,10 +142,12 @@ fn enum_from_alist<T: FromStr + Default>(
 fn make_component_from_alist(
     ctx: &mut TulispContext,
     alist: &TulispObject,
+    symbols: &InternedSymbols,
 ) -> Result<Component, Error> {
-    let id = alist_get_as!(ctx, alist, "id", as_int)? as u64;
-    let name = alist_get_as!(ctx, alist, "name", as_string).unwrap_or_default();
-    let Some(category) = enum_from_alist::<ComponentCategory>(ctx, alist, "category", false) else {
+    let id = alist_get_as!(ctx, alist, &symbols.id, as_int)? as u64;
+    let name = alist_get_as!(ctx, alist, &symbols.name, as_string).unwrap_or_default();
+    let Some(category) = enum_from_alist::<ComponentCategory>(ctx, alist, &symbols.category, false)
+    else {
         return Err(Error::new(
             tulisp::ErrorKind::Uninitialized,
             format!("Invalid component category for component {}", id),
@@ -123,14 +155,21 @@ fn make_component_from_alist(
     };
 
     let metadata = match category {
-        ComponentCategory::Inverter => enum_from_alist::<InverterType>(ctx, alist, "type", false)
-            .map(|typ| component::Metadata::Inverter(inverter::Metadata { r#type: typ as i32 })),
-        ComponentCategory::Battery => enum_from_alist::<BatteryType>(ctx, alist, "type", false)
-            .map(|typ| component::Metadata::Battery(battery::Metadata { r#type: typ as i32 })),
-        ComponentCategory::EvCharger => enum_from_alist::<EvChargerType>(ctx, alist, "type", false)
-            .map(|typ| component::Metadata::EvCharger(ev_charger::Metadata { r#type: typ as i32 })),
+        ComponentCategory::Inverter => {
+            enum_from_alist::<InverterType>(ctx, alist, &symbols.type_, false)
+                .map(|typ| component::Metadata::Inverter(inverter::Metadata { r#type: typ as i32 }))
+        }
+        ComponentCategory::Battery => {
+            enum_from_alist::<BatteryType>(ctx, alist, &symbols.type_, false)
+                .map(|typ| component::Metadata::Battery(battery::Metadata { r#type: typ as i32 }))
+        }
+        ComponentCategory::EvCharger => {
+            enum_from_alist::<EvChargerType>(ctx, alist, &symbols.type_, false).map(|typ| {
+                component::Metadata::EvCharger(ev_charger::Metadata { r#type: typ as i32 })
+            })
+        }
         ComponentCategory::Grid => Some(component::Metadata::Grid(grid::Metadata {
-            rated_fuse_current: alist_get_u32!(ctx, alist, "rated-fuse-current"),
+            rated_fuse_current: alist_get_u32!(ctx, alist, &symbols.rated_fuse_current),
         })),
         _ => None,
     };
@@ -156,11 +195,13 @@ impl Config {
             e
         });
         let now = std::time::Instant::now();
+        let symbols = InternedSymbols::new(&mut ctx);
         Self {
             filename: filename.to_string(),
             ctx: Rc::new(RefCell::new(ctx)),
             stream_methods: Rc::new(RefCell::new(HashMap::new())),
             last_formula_update_time: Rc::new(RefCell::new(now)),
+            symbols,
         }
     }
 
@@ -307,7 +348,10 @@ Invalid socket-addr.  Add a config line in this format:
         Ok(ComponentList {
             components: alists
                 .base_iter()
-                .map(|x| make_component_from_alist(&mut self.ctx.borrow_mut(), &x).unwrap())
+                .map(|x| {
+                    make_component_from_alist(&mut self.ctx.borrow_mut(), &x, &self.symbols)
+                        .unwrap()
+                })
                 .collect(),
         })
     }
@@ -340,7 +384,7 @@ Invalid socket-addr.  Add a config line in this format:
     }
 
     fn get_conv_function(&self, component_id: u64, comp: &TulispObject) -> CompDataMaker {
-        match make_component_from_alist(&mut self.ctx.borrow_mut(), &comp)
+        match make_component_from_alist(&mut self.ctx.borrow_mut(), &comp, &self.symbols)
             .unwrap()
             .category()
         {
@@ -367,17 +411,24 @@ Invalid socket-addr.  Add a config line in this format:
                 let comp = alists
                     .base_iter()
                     .find(|x| {
-                        alist_get_as!(&mut self.ctx.borrow_mut(), &x, "id", as_int).unwrap() as u64
+                        alist_get_as!(&mut self.ctx.borrow_mut(), &x, &self.symbols.id, as_int)
+                            .unwrap() as u64
                             == component_id
                     })
                     .expect(&format!("Component id {component_id} not found"));
 
-                let stream = alist_get_as!(&mut self.ctx.borrow_mut(), &comp, "stream").unwrap();
+                let stream =
+                    alist_get_as!(&mut self.ctx.borrow_mut(), &comp, &self.symbols.stream).unwrap();
 
-                let interval =
-                    alist_get_as!(&mut self.ctx.borrow_mut(), &stream, "interval", as_int).unwrap();
+                let interval = alist_get_as!(
+                    &mut self.ctx.borrow_mut(),
+                    &stream,
+                    &self.symbols.interval,
+                    as_int
+                )
+                .unwrap();
                 let data_method =
-                    alist_get_as!(&mut self.ctx.borrow_mut(), &stream, "data").unwrap();
+                    alist_get_as!(&mut self.ctx.borrow_mut(), &stream, &self.symbols.data).unwrap();
 
                 let conv_function = self.get_conv_function(component_id, &comp);
 
@@ -398,7 +449,7 @@ Invalid socket-addr.  Add a config line in this format:
             panic!();
         })?;
 
-        let comp_data = conv_function(&mut self.ctx.borrow_mut(), &tulisp_data);
+        let comp_data = conv_function(&mut self.ctx.borrow_mut(), &tulisp_data, &self.symbols);
         let comp_data = comp_data.map_err(|e| {
             log::error!("Tulisp error:\n{}", e.format(&self.ctx.borrow()));
             panic!();
@@ -410,28 +461,33 @@ Invalid socket-addr.  Add a config line in this format:
 
 /// ComponentData methods
 impl Config {
-    fn battery_data(ctx: &mut TulispContext, alist: &TulispObject) -> Result<ComponentData, Error> {
-        let id = alist_get_as!(ctx, &alist, "id", eval ++ as_int)? as u64;
-        let capacity = alist_get_f32!(ctx, &alist, "capacity");
+    fn battery_data(
+        ctx: &mut TulispContext,
+        alist: &TulispObject,
+        symbols: &InternedSymbols,
+    ) -> Result<ComponentData, Error> {
+        let id = alist_get_as!(ctx, &alist, &symbols.id, eval ++ as_int)? as u64;
+        let capacity = alist_get_f32!(ctx, &alist, &symbols.capacity);
 
-        let soc_avg = alist_get_f32!(ctx, &alist, "soc");
-        let soc_lower = alist_get_f32!(ctx, &alist, "soc-lower");
-        let soc_upper = alist_get_f32!(ctx, &alist, "soc-upper");
+        let soc_avg = alist_get_f32!(ctx, &alist, &symbols.soc);
+        let soc_lower = alist_get_f32!(ctx, &alist, &symbols.soc_lower);
+        let soc_upper = alist_get_f32!(ctx, &alist, &symbols.soc_upper);
 
-        let voltage = alist_get_f32!(ctx, &alist, "voltage");
-        let current = alist_get_f32!(ctx, &alist, "current");
-        let power = alist_get_f32!(ctx, &alist, "power");
+        let voltage = alist_get_f32!(ctx, &alist, &symbols.voltage);
+        let current = alist_get_f32!(ctx, &alist, &symbols.current);
+        let power = alist_get_f32!(ctx, &alist, &symbols.power);
 
-        let inclusion_lower = alist_get_f32!(ctx, &alist, "inclusion-lower");
-        let inclusion_upper = alist_get_f32!(ctx, &alist, "inclusion-upper");
-        let exclusion_lower = alist_get_f32!(ctx, &alist, "exclusion-lower");
-        let exclusion_upper = alist_get_f32!(ctx, &alist, "exclusion-upper");
+        let inclusion_lower = alist_get_f32!(ctx, &alist, &symbols.inclusion_lower);
+        let inclusion_upper = alist_get_f32!(ctx, &alist, &symbols.inclusion_upper);
+        let exclusion_lower = alist_get_f32!(ctx, &alist, &symbols.exclusion_lower);
+        let exclusion_upper = alist_get_f32!(ctx, &alist, &symbols.exclusion_upper);
 
         let component_state =
-            enum_from_alist::<battery::ComponentState>(ctx, &alist, "component-state", true)
+            enum_from_alist::<battery::ComponentState>(ctx, &alist, &symbols.component_state, true)
                 .unwrap_or_default() as i32;
-        let relay_state = enum_from_alist::<battery::RelayState>(ctx, &alist, "relay-state", true)
-            .unwrap_or_default() as i32;
+        let relay_state =
+            enum_from_alist::<battery::RelayState>(ctx, &alist, &symbols.relay_state, true)
+                .unwrap_or_default() as i32;
 
         return Ok(ComponentData {
             ts: Some(Timestamp::from(std::time::SystemTime::now())),
@@ -484,20 +540,24 @@ impl Config {
         });
     }
 
-    fn ac_from_alist(ctx: &mut TulispContext, alist: &TulispObject) -> Result<Ac, Error> {
+    fn ac_from_alist(
+        ctx: &mut TulispContext,
+        alist: &TulispObject,
+        symbols: &InternedSymbols,
+    ) -> Result<Ac, Error> {
         let frequency = ctx
             .intern("ac-frequency")
             .get()
             .and_then(|x| x.as_float())
             .unwrap_or_default() as f32;
-        let current = alist_get_3_phase!(ctx, &alist, "current");
-        let voltage = alist_get_3_phase!(ctx, &alist, "voltage");
-        let power = alist_get_f32!(ctx, &alist, "power");
+        let current = alist_get_3_phase!(ctx, &alist, &symbols.current);
+        let voltage = alist_get_3_phase!(ctx, &alist, &symbols.voltage);
+        let power = alist_get_f32!(ctx, &alist, &symbols.power);
 
-        let inclusion_lower = alist_get_f32!(ctx, &alist, "inclusion-lower");
-        let inclusion_upper = alist_get_f32!(ctx, &alist, "inclusion-upper");
-        let exclusion_lower = alist_get_f32!(ctx, &alist, "exclusion-lower");
-        let exclusion_upper = alist_get_f32!(ctx, &alist, "exclusion-upper");
+        let inclusion_lower = alist_get_f32!(ctx, &alist, &symbols.inclusion_lower);
+        let inclusion_upper = alist_get_f32!(ctx, &alist, &symbols.inclusion_upper);
+        let exclusion_lower = alist_get_f32!(ctx, &alist, &symbols.exclusion_lower);
+        let exclusion_upper = alist_get_f32!(ctx, &alist, &symbols.exclusion_upper);
 
         Ok(Ac {
             frequency: Some(Metric {
@@ -560,12 +620,17 @@ impl Config {
     fn inverter_data(
         ctx: &mut TulispContext,
         alist: &TulispObject,
+        symbols: &InternedSymbols,
     ) -> Result<ComponentData, Error> {
-        let id = alist_get_as!(ctx, &alist, "id", eval ++ as_int)? as u64;
+        let id = alist_get_as!(ctx, &alist, &symbols.id, eval ++ as_int)? as u64;
 
-        let component_state =
-            enum_from_alist::<inverter::ComponentState>(ctx, &alist, "component-state", true)
-                .unwrap_or_default() as i32;
+        let component_state = enum_from_alist::<inverter::ComponentState>(
+            ctx,
+            &alist,
+            &symbols.component_state,
+            true,
+        )
+        .unwrap_or_default() as i32;
 
         return Ok(ComponentData {
             ts: Some(Timestamp::from(std::time::SystemTime::now())),
@@ -573,7 +638,7 @@ impl Config {
             data: Some(component_data::Data::Inverter(inverter::Inverter {
                 state: Some(inverter::State { component_state }),
                 data: Some(inverter::Data {
-                    ac: Some(Self::ac_from_alist(ctx, &alist)?),
+                    ac: Some(Self::ac_from_alist(ctx, &alist, symbols)?),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -581,15 +646,19 @@ impl Config {
         });
     }
 
-    fn meter_data(ctx: &mut TulispContext, alist: &TulispObject) -> Result<ComponentData, Error> {
-        let id = alist_get_as!(ctx, &alist, "id", eval ++ as_int)? as u64;
+    fn meter_data(
+        ctx: &mut TulispContext,
+        alist: &TulispObject,
+        symbols: &InternedSymbols,
+    ) -> Result<ComponentData, Error> {
+        let id = alist_get_as!(ctx, &alist, &symbols.id, eval ++ as_int)? as u64;
 
         return Ok(ComponentData {
             ts: Some(Timestamp::from(std::time::SystemTime::now())),
             id,
             data: Some(component_data::Data::Meter(meter::Meter {
                 data: Some(meter::Data {
-                    ac: Some(Self::ac_from_alist(ctx, &alist)?),
+                    ac: Some(Self::ac_from_alist(ctx, &alist, symbols)?),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -600,15 +669,20 @@ impl Config {
     fn ev_charger_data(
         ctx: &mut TulispContext,
         alist: &TulispObject,
+        symbols: &InternedSymbols,
     ) -> Result<ComponentData, Error> {
-        let id = alist_get_as!(ctx, &alist, "id", eval ++ as_int)? as u64;
+        let id = alist_get_as!(ctx, &alist, &symbols.id, eval ++ as_int)? as u64;
 
-        let component_state =
-            enum_from_alist::<ev_charger::ComponentState>(ctx, &alist, "component-state", true)
-                .unwrap_or_default() as i32;
+        let component_state = enum_from_alist::<ev_charger::ComponentState>(
+            ctx,
+            &alist,
+            &symbols.component_state,
+            true,
+        )
+        .unwrap_or_default() as i32;
 
         let cable_state =
-            enum_from_alist::<ev_charger::CableState>(ctx, &alist, "cable-state", true)
+            enum_from_alist::<ev_charger::CableState>(ctx, &alist, &symbols.cable_state, true)
                 .unwrap_or_default() as i32;
 
         return Ok(ComponentData {
@@ -620,7 +694,7 @@ impl Config {
                     cable_state,
                 }),
                 data: Some(ev_charger::Data {
-                    ac: Some(Self::ac_from_alist(ctx, &alist)?),
+                    ac: Some(Self::ac_from_alist(ctx, &alist, symbols)?),
                     ..Default::default()
                 }),
                 ..Default::default()
