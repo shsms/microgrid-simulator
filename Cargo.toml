@@ -9,7 +9,7 @@ prost = "0.12.1"
 prost-types = "0.12.1"
 tokio = { version = "1.33.0", features = ["rt", "macros"] }
 tokio-stream = "0.1.14"
-tulisp = "0.15.0"
+tulisp = "0.16.0"
 notify = "6.1.1"
 futures = "0.3.30"
 log = "0.4.20"
