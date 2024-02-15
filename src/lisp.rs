@@ -16,7 +16,7 @@ use crate::proto::{
 };
 use notify::{RecommendedWatcher, Watcher};
 use prost_types::Timestamp;
-use tulisp::{list, tulisp_fn, Error, TulispContext, TulispObject};
+use tulisp::{destruct_bind, list, Error, ErrorKind, TulispContext, TulispObject};
 
 type CompDataMaker = fn(&mut TulispContext, &TulispObject) -> Result<ComponentData, Error>;
 
@@ -630,37 +630,30 @@ impl Config {
 }
 
 fn add_functions(ctx: &mut TulispContext) {
-    #[tulisp_fn(add_func = "ctx", name = "log.info")]
-    fn log_info(msg: String) {
-        log::info!("{}", msg);
+    macro_rules! log_impl {
+        ($level:ident) => {
+            |ctx, args| {
+                destruct_bind!((msg) = args);
+                log::$level!("{}", ctx.eval(&msg)?.as_string()?);
+                Ok(TulispObject::nil())
+            }
+        };
     }
 
-    #[tulisp_fn(add_func = "ctx", name = "log.warn")]
-    fn log_warn(msg: String) {
-        log::warn!("{}", msg);
-    }
+    ctx.add_special_form("log.info", log_impl!(info));
+    ctx.add_special_form("log.warn", log_impl!(warn));
+    ctx.add_special_form("log.error", log_impl!(error));
+    ctx.add_special_form("log.debug", log_impl!(debug));
+    ctx.add_special_form("log.trace", log_impl!(trace));
 
-    #[tulisp_fn(add_func = "ctx", name = "log.error")]
-    fn log_error(msg: String) {
-        log::error!("{}", msg);
-    }
-
-    #[tulisp_fn(add_func = "ctx", name = "log.debug")]
-    fn log_debug(msg: String) {
-        log::debug!("{}", msg);
-    }
-
-    #[tulisp_fn(add_func = "ctx", name = "log.trace")]
-    fn log_trace(msg: String) {
-        log::trace!("{}", msg);
-    }
-
-    #[tulisp_fn(add_func = "ctx")]
-    fn random(limit: Option<i64>) -> i64 {
-        if let Some(limit) = limit {
-            rand::thread_rng().gen_range(0..limit)
-        } else {
+    ctx.add_special_form("random", |ctx, args| {
+        destruct_bind!((&optional limit) = args);
+        let rnd = if limit.null() {
             rand::thread_rng().gen()
-        }
-    }
+        } else {
+            let limit = ctx.eval(&limit)?.try_into()?;
+            rand::thread_rng().gen_range(0..limit)
+        };
+        Ok(rnd.into())
+    });
 }
