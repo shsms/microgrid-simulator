@@ -128,17 +128,11 @@
   (let* ((power-symbol (power-symbol-from-id id))
          (bounds-check-func (eval (bounds-check-func-symbol-from-id id)))
          (set-power-func (eval (set-power-func-symbol-from-id id)))
-         ;; (original-power (eval power-symbol))
          (power (ftruncate power)))
 
     (if (funcall bounds-check-func power)
         (progn
           (funcall set-power-func power)
-          ;; (when (not (equal original-power power))
-          ;;   (log.info (format "Setting power for component %d to %f (was %f))"
-          ;;                     id
-          ;;                     power
-          ;;                     original-power)))
           nil)
         (let ((err (format "Requested power %f is out of bounds for component id %d" power id)))
           (log.warn err)
@@ -159,10 +153,25 @@
     (list 'lambda '(_) `(quote ,args-alist))))
 
 
-(defun ac-current-from-power (power)
+(defun calc-per-phase-current (power)
+  ;; pf = w / (v * a)
+  ;; a = w / (v * pf)
+  ;; a = (* w (/ voltage total-voltage)) / (v * pf)
   (if (numberp power)
-      (let ((per-phase-power (/ power 3)))
-        (mapcar '(lambda (voltage) (/ per-phase-power voltage)) ac-voltage))
+      (let ((sum-voltage (seq-reduce '+ voltage-per-phase 0.0))
+            (vp1 (car voltage-per-phase))
+            (vp2 (cadr voltage-per-phase))
+            (vp3 (caddr voltage-per-phase)))
+        (list (/ (* power (/ vp1 sum-voltage)) (* vp1 (car power-factor-per-phase)))
+              (/ (* power (/ vp2 sum-voltage)) (* vp2 (cadr power-factor-per-phase)))
+              (/ (* power (/ vp3 sum-voltage)) (* vp3 (caddr power-factor-per-phase)))))
+    '(0.0 0.0 0.0)))
+
+
+(defun calc-per-phase-power (power)
+  (if (numberp power)
+      (let ((total-voltage (seq-reduce '+ voltage-per-phase 0.0)))
+        (mapcar '(lambda (voltage) (* power (/ voltage total-voltage))) voltage-per-phase))
     '(0.0 0.0 0.0)))
 
 
@@ -211,6 +220,7 @@
   (let* ((milliseconds (plist-get plist :milliseconds))
          (action (plist-get plist :call))
          (timer (intern (format "repeat-every-timer-%d" (get-timer-id)))))
+    (funcall action)     ;; call once at the start
     (set timer 0)
     (setq state-update-functions
           (cons (list 'lambda '(ms-since-last-call)

@@ -132,7 +132,7 @@
   (component-data-maker data-alist
                         defaults-alist
                         '(id power current voltage component-state
-                          inclusion-lower inclusion-upper)))
+                          per-phase-power inclusion-lower inclusion-upper)))
 
 (defun make-battery-inverter (&rest plist)
   (let* ((id (or (plist-get plist :id) (get-comp-id)))
@@ -152,7 +152,9 @@
 
          (power-expr (when is-healthy
                        `((power . ,(make-power-expr successors))
-                         (current . (ac-current-from-power
+                         (per-phase-power . (calc-per-phase-power ,(make-power-expr successors)))
+                         (voltage . voltage-per-phase)
+                         (current . (calc-per-phase-current
                                      ,(make-power-expr successors)))
                          (component-state . (power->component-state
                                              ,(make-power-expr successors))))))
@@ -227,10 +229,10 @@
 ;; Meters ;;
 ;;;;;;;;;;;;
 
-(defmacro meter-data-maker (data-alist defaults-alist)
+(defmacro meter-data-maker (data-alist)
   (component-data-maker data-alist
-                        defaults-alist
-                        '(id power current voltage)))
+                        nil
+                        '(id power per-phase-power current voltage)))
 
 
 
@@ -241,13 +243,15 @@
          (config (plist-get plist :config))
          (successors (plist-get plist :successors))
          (current-expr (if-let ((current (if power
-                                             `(ac-current-from-power ,power)
+                                             `(calc-per-phase-current ,power)
                                              (make-current-expr successors)
                                              )))
                            `((current . ,current))))
          (power-expr (if-let ((power (or power
                                          (make-power-expr successors))))
-                         `((power . ,power))))
+                         `((power . ,power)
+                           (per-phase-power . (calc-per-phase-power ,power))
+                           (voltage . voltage-per-phase))))
          (meter
           `((category . meter)
             (name     . ,(format "meter-%s" id))
@@ -261,8 +265,7 @@
                                         `((id    . ,id)
                                           ,@current-expr
                                           ,@power-expr
-                                          ,@config)
-                                        meter-defaults))))))))
+                                          ,@config)))))))))
 
     (log.trace (format "Adding meter %s" id))
 

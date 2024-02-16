@@ -11,7 +11,6 @@
 
 
 (setq ac-frequency 50.0)
-(setq ac-voltage '(230.0 230.0 230.0))
 
 
 (setq battery-interval 200)
@@ -32,18 +31,7 @@
 
 
 (setq inverter-defaults `((component-state . idle)
-                          (rated-bounds    . (-30000.0 30000.0))
-                          (voltage         . ,ac-voltage)))
-
-
-(setq meter-defaults `((voltage . ,ac-voltage)))
-
-
-(setq ev-charger-defaults `((component-state . ready)
-                            (cable-state     . unplugged)
-                            (inclusion-lower . 0.0)
-                            (inclusion-upper . ,(* 16.0 230.0)) ; 16A
-                            (voltage         . ,ac-voltage)))
+                          (rated-bounds    . (-30000.0 30000.0))))
 
 
 (make-grid
@@ -54,15 +42,12 @@
               (make-meter
                :id 2
                :successors (list
-                            ;; meter for inv/2xbat setup
                             (make-meter
                              :successors (list
                                           (make-battery-inverter
                                            :successors (list
-                                                        (make-battery)
                                                         (make-battery)))))
 
-                            ;; meter for inv/bat setup
                             (make-meter
                              :successors (list
                                           (make-battery-inverter
@@ -77,12 +62,18 @@
 
 
 
-(setq base-consumer-power 100.0)
-(setq consumer-power base-consumer-power)
-
 (every
- :milliseconds 1000
+ :milliseconds 200
  :call (lambda ()
          (setq consumer-power
-               (* base-consumer-power
-                  (+ 1 (random 100))))))
+               (+ 1000 (random 100)))
+
+         (setq voltage-per-phase
+               (list (+ 229.0 (/ (random 200) 100.0))
+                     (+ 229.0 (/ (random 200) 100.0))
+                     (+ 229.0 (/ (random 200) 100.0))))
+
+         (setq power-factor-per-phase
+               (list (+ 0.88 (/ (random 5) 100.0))
+                     (+ 0.88 (/ (random 5) 100.0))
+                     (+ 0.88 (/ (random 5) 100.0))))))

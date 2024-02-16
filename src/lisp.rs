@@ -19,11 +19,11 @@ use prost_types::Timestamp;
 use tulisp::{destruct_bind, intern, list, Error, ErrorKind, TulispContext, TulispObject};
 
 type CompDataMaker =
-    fn(&mut TulispContext, &TulispObject, &InternedSymbols) -> Result<ComponentData, Error>;
+    fn(&mut TulispContext, &TulispObject, &Symbols) -> Result<ComponentData, Error>;
 
 intern! {
     #[derive(Clone)]
-    pub(crate) struct InternedSymbols {
+    pub(crate) struct Symbols {
         id: "id",
         soc: "soc",
         name: "name",
@@ -40,12 +40,21 @@ intern! {
         soc_upper: "soc-upper",
         relay_state: "relay-state",
         cable_state: "cable-state",
+        socket_addr: "socket-addr",
+        ac_frequency: "ac-frequency",
         inclusion_lower: "inclusion-lower",
         inclusion_upper: "inclusion-upper",
         exclusion_lower: "exclusion-lower",
         exclusion_upper: "exclusion-upper",
+        per_phase_power: "per-phase-power",
         component_state: "component-state",
+        components_alist: "components-alist",
+        set_power_active: "set-power-active",
+        connections_alist: "connections-alist",
         rated_fuse_current: "rated-fuse-current",
+        state_update_functions: "state-update-functions",
+        state_update_interval_ms: "state-update-interval-ms",
+        retain_requests_duration_ms: "retain-requests-duration-ms",
     }
 }
 
@@ -61,7 +70,7 @@ pub struct Config {
     /// Component ID -> last power update time.
     last_formula_update_time: Rc<RefCell<std::time::Instant>>,
 
-    symbols: InternedSymbols,
+    symbols: Symbols,
 }
 
 // Tokio is configured to use the current_thread runtime, so it is not unsafe to
@@ -142,7 +151,7 @@ fn enum_from_alist<T: FromStr + Default>(
 fn make_component_from_alist(
     ctx: &mut TulispContext,
     alist: &TulispObject,
-    symbols: &InternedSymbols,
+    symbols: &Symbols,
 ) -> Result<Component, Error> {
     let id = alist_get_as!(ctx, alist, &symbols.id, as_int)? as u64;
     let name = alist_get_as!(ctx, alist, &symbols.name, as_string).unwrap_or_default();
@@ -195,7 +204,7 @@ impl Config {
             e
         });
         let now = std::time::Instant::now();
-        let symbols = InternedSymbols::new(&mut ctx);
+        let symbols = Symbols::new(&mut ctx);
         Self {
             filename: filename.to_string(),
             ctx: Rc::new(RefCell::new(ctx)),
@@ -271,9 +280,8 @@ impl Config {
             loop {
                 config.update_state();
                 let update_interval = config
-                    .ctx
-                    .borrow_mut()
-                    .intern("state-update-interval-ms")
+                    .symbols
+                    .state_update_interval_ms
                     .get()
                     .and_then(|x| x.as_int())
                     .unwrap_or(2000) as u64;
@@ -283,8 +291,10 @@ impl Config {
     }
 
     fn update_state(&self) {
-        let exprs_alist = self.ctx.borrow_mut().intern("state-update-functions").get();
-        let exprs_alist = exprs_alist
+        let exprs_alist = self
+            .symbols
+            .state_update_functions
+            .get()
             .map_err(|e| {
                 log::error!("Tulisp error:\n{}", e.format(&self.ctx.borrow()));
                 panic!("Update state function failed");
@@ -309,12 +319,7 @@ impl Config {
     }
 
     pub fn socket_addr(&self) -> String {
-        let addr = self
-            .ctx
-            .borrow_mut()
-            .intern("socket-addr")
-            .get()
-            .and_then(|x| x.as_string());
+        let addr = self.symbols.socket_addr.get().and_then(|x| x.as_string());
 
         match addr {
             Ok(vv) => vv,
@@ -333,9 +338,8 @@ Invalid socket-addr.  Add a config line in this format:
 
     pub fn retain_requests_duration(&self) -> Duration {
         let dur_ms = self
-            .ctx
-            .borrow_mut()
-            .intern("retain-requests-duration-ms")
+            .symbols
+            .retain_requests_duration_ms
             .get()
             .and_then(|x| x.as_int())
             .unwrap_or(5000);
@@ -344,7 +348,7 @@ Invalid socket-addr.  Add a config line in this format:
     }
 
     pub fn components(&self) -> Result<ComponentList, Error> {
-        let alists = self.ctx.borrow_mut().intern("components-alist").get()?;
+        let alists = self.symbols.components_alist.get()?;
         Ok(ComponentList {
             components: alists
                 .base_iter()
@@ -357,7 +361,7 @@ Invalid socket-addr.  Add a config line in this format:
     }
 
     pub fn connections(&self) -> Result<ConnectionList, Error> {
-        let alist = self.ctx.borrow_mut().intern("connections-alist").get()?;
+        let alist = self.symbols.connections_alist.get()?;
         Ok(ConnectionList {
             connections: alist
                 .base_iter()
@@ -371,9 +375,8 @@ Invalid socket-addr.  Add a config line in this format:
     }
 
     pub fn set_power_active(&self, component_id: u64, power: f32) -> Result<(), Error> {
-        let func = self.ctx.borrow_mut().intern("set-power-active");
         let res = self.ctx.borrow_mut().funcall(
-            &func,
+            &self.symbols.set_power_active,
             &list![(component_id as i64).into(), (power as f64).into()]?,
         )?;
 
@@ -407,7 +410,7 @@ Invalid socket-addr.  Add a config line in this format:
             {
                 (data_method.clone(), *interval, *conv_function)
             } else {
-                let alists = self.ctx.borrow_mut().intern("components-alist").get()?;
+                let alists = self.symbols.components_alist.get()?;
                 let comp = alists
                     .base_iter()
                     .find(|x| {
@@ -464,7 +467,7 @@ impl Config {
     fn battery_data(
         ctx: &mut TulispContext,
         alist: &TulispObject,
-        symbols: &InternedSymbols,
+        symbols: &Symbols,
     ) -> Result<ComponentData, Error> {
         let id = alist_get_as!(ctx, &alist, &symbols.id, eval ++ as_int)? as u64;
         let capacity = alist_get_f32!(ctx, &alist, &symbols.capacity);
@@ -543,15 +546,17 @@ impl Config {
     fn ac_from_alist(
         ctx: &mut TulispContext,
         alist: &TulispObject,
-        symbols: &InternedSymbols,
+        symbols: &Symbols,
     ) -> Result<Ac, Error> {
-        let frequency = ctx
-            .intern("ac-frequency")
+        let frequency = symbols
+            .ac_frequency
             .get()
             .and_then(|x| x.as_float())
             .unwrap_or_default() as f32;
         let current = alist_get_3_phase!(ctx, &alist, &symbols.current);
         let voltage = alist_get_3_phase!(ctx, &alist, &symbols.voltage);
+        let per_phase_power = alist_get_3_phase!(ctx, &alist, &symbols.per_phase_power);
+
         let power = alist_get_f32!(ctx, &alist, &symbols.power);
 
         let inclusion_lower = alist_get_f32!(ctx, &alist, &symbols.inclusion_lower);
@@ -589,6 +594,10 @@ impl Config {
                     value: current.0,
                     ..Default::default()
                 }),
+                power_active: Some(Metric {
+                    value: per_phase_power.0,
+                    ..Default::default()
+                }),
                 ..Default::default()
             }),
             phase_2: Some(AcPhase {
@@ -598,6 +607,10 @@ impl Config {
                 }),
                 current: Some(Metric {
                     value: current.1,
+                    ..Default::default()
+                }),
+                power_active: Some(Metric {
+                    value: per_phase_power.1,
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -611,6 +624,10 @@ impl Config {
                     value: current.2,
                     ..Default::default()
                 }),
+                power_active: Some(Metric {
+                    value: per_phase_power.2,
+                    ..Default::default()
+                }),
                 ..Default::default()
             }),
             ..Default::default()
@@ -620,7 +637,7 @@ impl Config {
     fn inverter_data(
         ctx: &mut TulispContext,
         alist: &TulispObject,
-        symbols: &InternedSymbols,
+        symbols: &Symbols,
     ) -> Result<ComponentData, Error> {
         let id = alist_get_as!(ctx, &alist, &symbols.id, eval ++ as_int)? as u64;
 
@@ -649,7 +666,7 @@ impl Config {
     fn meter_data(
         ctx: &mut TulispContext,
         alist: &TulispObject,
-        symbols: &InternedSymbols,
+        symbols: &Symbols,
     ) -> Result<ComponentData, Error> {
         let id = alist_get_as!(ctx, &alist, &symbols.id, eval ++ as_int)? as u64;
 
@@ -669,7 +686,7 @@ impl Config {
     fn ev_charger_data(
         ctx: &mut TulispContext,
         alist: &TulispObject,
-        symbols: &InternedSymbols,
+        symbols: &Symbols,
     ) -> Result<ComponentData, Error> {
         let id = alist_get_as!(ctx, &alist, &symbols.id, eval ++ as_int)? as u64;
 
