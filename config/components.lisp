@@ -229,9 +229,9 @@
 ;; Meters ;;
 ;;;;;;;;;;;;
 
-(defmacro meter-data-maker (data-alist defaults-alist)
+(defmacro meter-data-maker (data-alist)
   (component-data-maker data-alist
-                        defaults-alist
+                        nil
                         '(id power per-phase-power current voltage)))
 
 
@@ -265,8 +265,7 @@
                                         `((id    . ,id)
                                           ,@current-expr
                                           ,@power-expr
-                                          ,@config)
-                                        meter-defaults))))))))
+                                          ,@config)))))))))
 
     (log.trace (format "Adding meter %s" id))
 

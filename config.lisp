@@ -34,9 +34,6 @@
                           (rated-bounds    . (-30000.0 30000.0))))
 
 
-(setq meter-defaults nil)
-
-
 (make-grid
  :id 1
  :rated-fuse-current 100
@@ -45,14 +42,12 @@
               (make-meter
                :id 2
                :successors (list
-                            ;; meter for inv/2xbat setup
                             (make-meter
                              :successors (list
                                           (make-battery-inverter
                                            :successors (list
                                                         (make-battery)))))
 
-                            ;; meter for inv/bat setup
                             (make-meter
                              :successors (list
                                           (make-battery-inverter
