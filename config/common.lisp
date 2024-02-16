@@ -218,6 +218,7 @@
   (let* ((milliseconds (plist-get plist :milliseconds))
          (action (plist-get plist :call))
          (timer (intern (format "repeat-every-timer-%d" (get-timer-id)))))
+    (funcall action)     ;; call once at the start
     (set timer 0)
     (setq state-update-functions
           (cons (list 'lambda '(ms-since-last-call)

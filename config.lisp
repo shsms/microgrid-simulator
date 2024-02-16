@@ -11,7 +11,7 @@
 
 
 (setq ac-frequency 50.0)
-(setq ac-voltage '(230.0 230.0 230.0))
+(setq ac-voltage '(230.5 230.0 231.0))
 
 
 (setq battery-interval 200)
@@ -77,12 +77,6 @@
 
 
 
-(setq base-consumer-power 100.0)
-(setq consumer-power base-consumer-power)
-
 (every
  :milliseconds 1000
- :call (lambda ()
-         (setq consumer-power
-               (* base-consumer-power
-                  (+ 1 (random 100))))))
+ :call (lambda () (setq consumer-power (+ 1000 (random 100)))))
