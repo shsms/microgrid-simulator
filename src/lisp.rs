@@ -19,11 +19,11 @@ use prost_types::Timestamp;
 use tulisp::{destruct_bind, intern, list, Error, ErrorKind, TulispContext, TulispObject};
 
 type CompDataMaker =
-    fn(&mut TulispContext, &TulispObject, &InternedSymbols) -> Result<ComponentData, Error>;
+    fn(&mut TulispContext, &TulispObject, &Symbols) -> Result<ComponentData, Error>;
 
 intern! {
     #[derive(Clone)]
-    pub(crate) struct InternedSymbols {
+    pub(crate) struct Symbols {
         id: "id",
         soc: "soc",
         name: "name",
@@ -61,7 +61,7 @@ pub struct Config {
     /// Component ID -> last power update time.
     last_formula_update_time: Rc<RefCell<std::time::Instant>>,
 
-    symbols: InternedSymbols,
+    symbols: Symbols,
 }
 
 // Tokio is configured to use the current_thread runtime, so it is not unsafe to
@@ -142,7 +142,7 @@ fn enum_from_alist<T: FromStr + Default>(
 fn make_component_from_alist(
     ctx: &mut TulispContext,
     alist: &TulispObject,
-    symbols: &InternedSymbols,
+    symbols: &Symbols,
 ) -> Result<Component, Error> {
     let id = alist_get_as!(ctx, alist, &symbols.id, as_int)? as u64;
     let name = alist_get_as!(ctx, alist, &symbols.name, as_string).unwrap_or_default();
@@ -195,7 +195,7 @@ impl Config {
             e
         });
         let now = std::time::Instant::now();
-        let symbols = InternedSymbols::new(&mut ctx);
+        let symbols = Symbols::new(&mut ctx);
         Self {
             filename: filename.to_string(),
             ctx: Rc::new(RefCell::new(ctx)),
@@ -464,7 +464,7 @@ impl Config {
     fn battery_data(
         ctx: &mut TulispContext,
         alist: &TulispObject,
-        symbols: &InternedSymbols,
+        symbols: &Symbols,
     ) -> Result<ComponentData, Error> {
         let id = alist_get_as!(ctx, &alist, &symbols.id, eval ++ as_int)? as u64;
         let capacity = alist_get_f32!(ctx, &alist, &symbols.capacity);
@@ -543,7 +543,7 @@ impl Config {
     fn ac_from_alist(
         ctx: &mut TulispContext,
         alist: &TulispObject,
-        symbols: &InternedSymbols,
+        symbols: &Symbols,
     ) -> Result<Ac, Error> {
         let frequency = ctx
             .intern("ac-frequency")
@@ -620,7 +620,7 @@ impl Config {
     fn inverter_data(
         ctx: &mut TulispContext,
         alist: &TulispObject,
-        symbols: &InternedSymbols,
+        symbols: &Symbols,
     ) -> Result<ComponentData, Error> {
         let id = alist_get_as!(ctx, &alist, &symbols.id, eval ++ as_int)? as u64;
 
@@ -649,7 +649,7 @@ impl Config {
     fn meter_data(
         ctx: &mut TulispContext,
         alist: &TulispObject,
-        symbols: &InternedSymbols,
+        symbols: &Symbols,
     ) -> Result<ComponentData, Error> {
         let id = alist_get_as!(ctx, &alist, &symbols.id, eval ++ as_int)? as u64;
 
@@ -669,7 +669,7 @@ impl Config {
     fn ev_charger_data(
         ctx: &mut TulispContext,
         alist: &TulispObject,
-        symbols: &InternedSymbols,
+        symbols: &Symbols,
     ) -> Result<ComponentData, Error> {
         let id = alist_get_as!(ctx, &alist, &symbols.id, eval ++ as_int)? as u64;
 
