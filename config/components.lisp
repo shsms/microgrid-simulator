@@ -153,6 +153,7 @@
          (power-expr (when is-healthy
                        `((power . ,(make-power-expr successors))
                          (per-phase-power . (calc-per-phase-power ,(make-power-expr successors)))
+                         (voltage . voltage-per-phase)
                          (current . (ac-current-from-power
                                      ,(make-power-expr successors)))
                          (component-state . (power->component-state
@@ -249,7 +250,8 @@
          (power-expr (if-let ((power (or power
                                          (make-power-expr successors))))
                          `((power . ,power)
-                           (per-phase-power . (calc-per-phase-power ,power)))))
+                           (per-phase-power . (calc-per-phase-power ,power))
+                           (voltage . voltage-per-phase))))
          (meter
           `((category . meter)
             (name     . ,(format "meter-%s" id))

@@ -11,7 +11,6 @@
 
 
 (setq ac-frequency 50.0)
-(setq ac-voltage '(230.5 230.0 231.0))
 
 
 (setq battery-interval 200)
@@ -32,11 +31,10 @@
 
 
 (setq inverter-defaults `((component-state . idle)
-                          (rated-bounds    . (-30000.0 30000.0))
-                          (voltage         . ,ac-voltage)))
+                          (rated-bounds    . (-30000.0 30000.0))))
 
 
-(setq meter-defaults `((voltage . ,ac-voltage)))
+(setq meter-defaults nil)
 
 
 (make-grid
@@ -52,7 +50,6 @@
                              :successors (list
                                           (make-battery-inverter
                                            :successors (list
-                                                        (make-battery)
                                                         (make-battery)))))
 
                             ;; meter for inv/bat setup
@@ -71,5 +68,10 @@
 
 
 (every
- :milliseconds 1000
- :call (lambda () (setq consumer-power (+ 1000 (random 100)))))
+ :milliseconds 200
+ :call (lambda ()
+         (setq consumer-power (+ 1000 (random 100)))
+         (setq voltage-per-phase (list
+                                  (+ 229.0 (/ (random 200) 100.0))
+                                  (+ 229.0 (/ (random 200) 100.0))
+                                  (+ 229.0 (/ (random 200) 100.0))))))

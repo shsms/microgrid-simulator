@@ -162,14 +162,14 @@
 (defun ac-current-from-power (power)
   (if (numberp power)
       (let ((per-phase-power (/ power 3)))
-        (mapcar '(lambda (voltage) (/ per-phase-power voltage)) ac-voltage))
+        (mapcar '(lambda (voltage) (/ per-phase-power voltage)) voltage-per-phase))
     '(0.0 0.0 0.0)))
 
 
 (defun calc-per-phase-power (power)
   (if (numberp power)
-      (let ((total-voltage (seq-reduce '+ ac-voltage 0.0)))
-        (mapcar '(lambda (voltage) (* power (/ voltage total-voltage))) ac-voltage))
+      (let ((total-voltage (seq-reduce '+ voltage-per-phase 0.0)))
+        (mapcar '(lambda (voltage) (* power (/ voltage total-voltage))) voltage-per-phase))
     '(0.0 0.0 0.0)))
 
 
