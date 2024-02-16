@@ -128,17 +128,11 @@
   (let* ((power-symbol (power-symbol-from-id id))
          (bounds-check-func (eval (bounds-check-func-symbol-from-id id)))
          (set-power-func (eval (set-power-func-symbol-from-id id)))
-         ;; (original-power (eval power-symbol))
          (power (ftruncate power)))
 
     (if (funcall bounds-check-func power)
         (progn
           (funcall set-power-func power)
-          ;; (when (not (equal original-power power))
-          ;;   (log.info (format "Setting power for component %d to %f (was %f))"
-          ;;                     id
-          ;;                     power
-          ;;                     original-power)))
           nil)
         (let ((err (format "Requested power %f is out of bounds for component id %d" power id)))
           (log.warn err)

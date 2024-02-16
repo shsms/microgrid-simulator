@@ -74,6 +74,6 @@
                      (+ 229.0 (/ (random 200) 100.0))))
 
          (setq power-factor-per-phase
-               (list (+ 0.84 (/ (random 10) 100.0))
-                     (+ 0.84 (/ (random 10) 100.0))
-                     (+ 0.84 (/ (random 10) 100.0))))))
+               (list (+ 0.88 (/ (random 5) 100.0))
+                     (+ 0.88 (/ (random 5) 100.0))
+                     (+ 0.88 (/ (random 5) 100.0))))))
