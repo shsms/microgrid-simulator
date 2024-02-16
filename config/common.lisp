@@ -166,6 +166,13 @@
     '(0.0 0.0 0.0)))
 
 
+(defun calc-per-phase-power (power)
+  (if (numberp power)
+      (let ((total-voltage (seq-reduce '+ ac-voltage 0.0)))
+        (mapcar '(lambda (voltage) (* power (/ voltage total-voltage))) ac-voltage))
+    '(0.0 0.0 0.0)))
+
+
 (defun is-healthy-battery (bat)
   (let ((comp-state (alist-get 'component-state bat))
         (relay-state (alist-get 'relay-state bat)))

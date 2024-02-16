@@ -132,7 +132,7 @@
   (component-data-maker data-alist
                         defaults-alist
                         '(id power current voltage component-state
-                          inclusion-lower inclusion-upper)))
+                          per-phase-power inclusion-lower inclusion-upper)))
 
 (defun make-battery-inverter (&rest plist)
   (let* ((id (or (plist-get plist :id) (get-comp-id)))
@@ -152,6 +152,7 @@
 
          (power-expr (when is-healthy
                        `((power . ,(make-power-expr successors))
+                         (per-phase-power . (calc-per-phase-power ,(make-power-expr successors)))
                          (current . (ac-current-from-power
                                      ,(make-power-expr successors)))
                          (component-state . (power->component-state
@@ -230,7 +231,7 @@
 (defmacro meter-data-maker (data-alist defaults-alist)
   (component-data-maker data-alist
                         defaults-alist
-                        '(id power current voltage)))
+                        '(id power per-phase-power current voltage)))
 
 
 
@@ -247,7 +248,8 @@
                            `((current . ,current))))
          (power-expr (if-let ((power (or power
                                          (make-power-expr successors))))
-                         `((power . ,power))))
+                         `((power . ,power)
+                           (per-phase-power . (calc-per-phase-power ,power)))))
          (meter
           `((category . meter)
             (name     . ,(format "meter-%s" id))

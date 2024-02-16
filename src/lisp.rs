@@ -46,6 +46,7 @@ intern! {
         inclusion_upper: "inclusion-upper",
         exclusion_lower: "exclusion-lower",
         exclusion_upper: "exclusion-upper",
+        per_phase_power: "per-phase-power",
         component_state: "component-state",
         components_alist: "components-alist",
         set_power_active: "set-power-active",
@@ -554,6 +555,8 @@ impl Config {
             .unwrap_or_default() as f32;
         let current = alist_get_3_phase!(ctx, &alist, &symbols.current);
         let voltage = alist_get_3_phase!(ctx, &alist, &symbols.voltage);
+        let per_phase_power = alist_get_3_phase!(ctx, &alist, &symbols.per_phase_power);
+
         let power = alist_get_f32!(ctx, &alist, &symbols.power);
 
         let inclusion_lower = alist_get_f32!(ctx, &alist, &symbols.inclusion_lower);
@@ -591,6 +594,10 @@ impl Config {
                     value: current.0,
                     ..Default::default()
                 }),
+                power_active: Some(Metric {
+                    value: per_phase_power.0,
+                    ..Default::default()
+                }),
                 ..Default::default()
             }),
             phase_2: Some(AcPhase {
@@ -602,6 +609,10 @@ impl Config {
                     value: current.1,
                     ..Default::default()
                 }),
+                power_active: Some(Metric {
+                    value: per_phase_power.1,
+                    ..Default::default()
+                }),
                 ..Default::default()
             }),
             phase_3: Some(AcPhase {
@@ -611,6 +622,10 @@ impl Config {
                 }),
                 current: Some(Metric {
                     value: current.2,
+                    ..Default::default()
+                }),
+                power_active: Some(Metric {
+                    value: per_phase_power.2,
                     ..Default::default()
                 }),
                 ..Default::default()
