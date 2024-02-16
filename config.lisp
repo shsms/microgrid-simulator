@@ -39,13 +39,6 @@
 (setq meter-defaults `((voltage . ,ac-voltage)))
 
 
-(setq ev-charger-defaults `((component-state . ready)
-                            (cable-state     . unplugged)
-                            (inclusion-lower . 0.0)
-                            (inclusion-upper . ,(* 16.0 230.0)) ; 16A
-                            (voltage         . ,ac-voltage)))
-
-
 (make-grid
  :id 1
  :rated-fuse-current 100
