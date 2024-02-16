@@ -159,10 +159,18 @@
     (list 'lambda '(_) `(quote ,args-alist))))
 
 
-(defun ac-current-from-power (power)
+(defun calc-per-phase-current (power)
+  ;; pf = w / (v * a)
+  ;; a = w / (v * pf)
+  ;; a = (* w (/ voltage total-voltage)) / (v * pf)
   (if (numberp power)
-      (let ((per-phase-power (/ power 3)))
-        (mapcar '(lambda (voltage) (/ per-phase-power voltage)) voltage-per-phase))
+      (let ((sum-voltage (seq-reduce '+ voltage-per-phase 0.0))
+            (vp1 (car voltage-per-phase))
+            (vp2 (cadr voltage-per-phase))
+            (vp3 (caddr voltage-per-phase)))
+        (list (/ (* power (/ vp1 sum-voltage)) (* vp1 (car power-factor-per-phase)))
+              (/ (* power (/ vp2 sum-voltage)) (* vp2 (cadr power-factor-per-phase)))
+              (/ (* power (/ vp3 sum-voltage)) (* vp3 (caddr power-factor-per-phase)))))
     '(0.0 0.0 0.0)))
 
 

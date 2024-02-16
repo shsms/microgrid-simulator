@@ -70,8 +70,15 @@
 (every
  :milliseconds 200
  :call (lambda ()
-         (setq consumer-power (+ 1000 (random 100)))
-         (setq voltage-per-phase (list
-                                  (+ 229.0 (/ (random 200) 100.0))
-                                  (+ 229.0 (/ (random 200) 100.0))
-                                  (+ 229.0 (/ (random 200) 100.0))))))
+         (setq consumer-power
+               (+ 1000 (random 100)))
+
+         (setq voltage-per-phase
+               (list (+ 229.0 (/ (random 200) 100.0))
+                     (+ 229.0 (/ (random 200) 100.0))
+                     (+ 229.0 (/ (random 200) 100.0))))
+
+         (setq power-factor-per-phase
+               (list (+ 0.84 (/ (random 10) 100.0))
+                     (+ 0.84 (/ (random 10) 100.0))
+                     (+ 0.84 (/ (random 10) 100.0))))))

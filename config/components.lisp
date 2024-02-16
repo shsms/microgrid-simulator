@@ -154,7 +154,7 @@
                        `((power . ,(make-power-expr successors))
                          (per-phase-power . (calc-per-phase-power ,(make-power-expr successors)))
                          (voltage . voltage-per-phase)
-                         (current . (ac-current-from-power
+                         (current . (calc-per-phase-current
                                      ,(make-power-expr successors)))
                          (component-state . (power->component-state
                                              ,(make-power-expr successors))))))
@@ -243,7 +243,7 @@
          (config (plist-get plist :config))
          (successors (plist-get plist :successors))
          (current-expr (if-let ((current (if power
-                                             `(ac-current-from-power ,power)
+                                             `(calc-per-phase-current ,power)
                                              (make-current-expr successors)
                                              )))
                            `((current . ,current))))
