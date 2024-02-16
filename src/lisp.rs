@@ -40,12 +40,20 @@ intern! {
         soc_upper: "soc-upper",
         relay_state: "relay-state",
         cable_state: "cable-state",
+        socket_addr: "socket-addr",
+        ac_frequency: "ac-frequency",
         inclusion_lower: "inclusion-lower",
         inclusion_upper: "inclusion-upper",
         exclusion_lower: "exclusion-lower",
         exclusion_upper: "exclusion-upper",
         component_state: "component-state",
+        components_alist: "components-alist",
+        set_power_active: "set-power-active",
+        connections_alist: "connections-alist",
         rated_fuse_current: "rated-fuse-current",
+        state_update_functions: "state-update-functions",
+        state_update_interval_ms: "state-update-interval-ms",
+        retain_requests_duration_ms: "retain-requests-duration-ms",
     }
 }
 
@@ -271,9 +279,8 @@ impl Config {
             loop {
                 config.update_state();
                 let update_interval = config
-                    .ctx
-                    .borrow_mut()
-                    .intern("state-update-interval-ms")
+                    .symbols
+                    .state_update_interval_ms
                     .get()
                     .and_then(|x| x.as_int())
                     .unwrap_or(2000) as u64;
@@ -283,8 +290,10 @@ impl Config {
     }
 
     fn update_state(&self) {
-        let exprs_alist = self.ctx.borrow_mut().intern("state-update-functions").get();
-        let exprs_alist = exprs_alist
+        let exprs_alist = self
+            .symbols
+            .state_update_functions
+            .get()
             .map_err(|e| {
                 log::error!("Tulisp error:\n{}", e.format(&self.ctx.borrow()));
                 panic!("Update state function failed");
@@ -309,12 +318,7 @@ impl Config {
     }
 
     pub fn socket_addr(&self) -> String {
-        let addr = self
-            .ctx
-            .borrow_mut()
-            .intern("socket-addr")
-            .get()
-            .and_then(|x| x.as_string());
+        let addr = self.symbols.socket_addr.get().and_then(|x| x.as_string());
 
         match addr {
             Ok(vv) => vv,
@@ -333,9 +337,8 @@ Invalid socket-addr.  Add a config line in this format:
 
     pub fn retain_requests_duration(&self) -> Duration {
         let dur_ms = self
-            .ctx
-            .borrow_mut()
-            .intern("retain-requests-duration-ms")
+            .symbols
+            .retain_requests_duration_ms
             .get()
             .and_then(|x| x.as_int())
             .unwrap_or(5000);
@@ -344,7 +347,7 @@ Invalid socket-addr.  Add a config line in this format:
     }
 
     pub fn components(&self) -> Result<ComponentList, Error> {
-        let alists = self.ctx.borrow_mut().intern("components-alist").get()?;
+        let alists = self.symbols.components_alist.get()?;
         Ok(ComponentList {
             components: alists
                 .base_iter()
@@ -357,7 +360,7 @@ Invalid socket-addr.  Add a config line in this format:
     }
 
     pub fn connections(&self) -> Result<ConnectionList, Error> {
-        let alist = self.ctx.borrow_mut().intern("connections-alist").get()?;
+        let alist = self.symbols.connections_alist.get()?;
         Ok(ConnectionList {
             connections: alist
                 .base_iter()
@@ -371,9 +374,8 @@ Invalid socket-addr.  Add a config line in this format:
     }
 
     pub fn set_power_active(&self, component_id: u64, power: f32) -> Result<(), Error> {
-        let func = self.ctx.borrow_mut().intern("set-power-active");
         let res = self.ctx.borrow_mut().funcall(
-            &func,
+            &self.symbols.set_power_active,
             &list![(component_id as i64).into(), (power as f64).into()]?,
         )?;
 
@@ -407,7 +409,7 @@ Invalid socket-addr.  Add a config line in this format:
             {
                 (data_method.clone(), *interval, *conv_function)
             } else {
-                let alists = self.ctx.borrow_mut().intern("components-alist").get()?;
+                let alists = self.symbols.components_alist.get()?;
                 let comp = alists
                     .base_iter()
                     .find(|x| {
@@ -545,8 +547,8 @@ impl Config {
         alist: &TulispObject,
         symbols: &Symbols,
     ) -> Result<Ac, Error> {
-        let frequency = ctx
-            .intern("ac-frequency")
+        let frequency = symbols
+            .ac_frequency
             .get()
             .and_then(|x| x.as_float())
             .unwrap_or_default() as f32;
