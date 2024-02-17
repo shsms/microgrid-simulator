@@ -10,9 +10,6 @@
 (setq state-update-interval-ms 200)
 
 
-(setq ac-frequency 50.0)
-
-
 (setq battery-interval 200)
 (setq inverter-interval 200)
 (setq meter-interval 200)
@@ -76,4 +73,7 @@
          (setq power-factor-per-phase
                (list (+ 0.88 (/ (random 5) 100.0))
                      (+ 0.88 (/ (random 5) 100.0))
-                     (+ 0.88 (/ (random 5) 100.0))))))
+                     (+ 0.88 (/ (random 5) 100.0))))
+
+         (setq ac-frequency
+               (+ 49.99 (/ (random 4) 100.0)))))
