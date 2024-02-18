@@ -2,7 +2,6 @@
 ;; reloaded, so that the same components and connections are not added
 ;; multiple times.
 (defun reset-state ()
-  (setq timer--counter 0)
   (setq comp--id--counter 1000)
   (setq connections-alist nil)
   (setq components-alist nil)
@@ -10,10 +9,6 @@
 
 (defun get-comp-id ()
   (setq comp--id--counter (+ comp--id--counter 1)))
-
-
-(defun get-timer-id ()
-  (setq timer--counter (+ timer--counter 1)))
 
 
 (defun power-symbol-from-id (id)
@@ -219,7 +214,7 @@
 (defun every (&rest plist)
   (let* ((milliseconds (plist-get plist :milliseconds))
          (action (plist-get plist :call))
-         (timer (intern (format "repeat-every-timer-%d" (get-timer-id)))))
+         (timer (gensym "timer-")))
     (funcall action)     ;; call once at the start
     (set timer 0)
     (setq state-update-functions
