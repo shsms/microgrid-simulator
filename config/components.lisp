@@ -102,19 +102,19 @@
       (set soc-symbol (eval initial-soc)))
 
     (setq state-update-functions
-          (cons (list 'lambda '(ms-since-last-call)
-                      `(eval (setq ,energy-symbol
+          (cons (eval (list 'lambda '(ms-since-last-call)
+                            `(setq ,energy-symbol
                                    (+ ,energy-symbol ;; ->> ?
                                       (* ,power-symbol
                                          (/ ms-since-last-call
-                                            ,(* 60.0 60.0 1000.0))))))
-                      `(eval ,soc-expr)
-                      `(eval ,incl-lower-expr)
-                      `(eval ,incl-upper-expr)
-                      `(cond ((< ,power-symbol ,incl-lower-symbol)
-                              (setq ,power-symbol ,incl-lower-symbol))
-                             ((> ,power-symbol ,incl-upper-symbol)
-                              (setq ,power-symbol ,incl-upper-symbol))))
+                                            ,(* 60.0 60.0 1000.0)))))
+                            soc-expr
+                            incl-lower-expr
+                            incl-upper-expr
+                            `(cond ((< ,power-symbol ,incl-lower-symbol)
+                                    (setq ,power-symbol ,incl-lower-symbol))
+                                   ((> ,power-symbol ,incl-upper-symbol)
+                                    (setq ,power-symbol ,incl-upper-symbol)))))
                 state-update-functions))
 
     (eval incl-lower-expr)
@@ -182,15 +182,15 @@
 
     (set bounds-check-func-symbol
          (if is-healthy
-             (list 'lambda '(power)
-                   `(and
-                     (,(make-battery-bounds-check-expr successors) power)
-                     (<= ,rated-lower
-                         power
-                         ,rated-upper)))
-             (list 'lambda '(power)
-                   (log.error "inverter is unhealthy")
-                   nil)))
+             (eval (list 'lambda '(power)
+                         `(and
+                           (,(make-battery-bounds-check-expr successors) power)
+                           (<= ,rated-lower
+                               power
+                               ,rated-upper))))
+             (eval (list 'lambda '(power)
+                         (log.error "inverter is unhealthy")
+                         nil))))
 
     (set set-power-func-symbol
          (let* ((healthy-batteries (seq-filter

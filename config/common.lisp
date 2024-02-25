@@ -109,14 +109,13 @@
       (setq sum-excl-upper-expr (cons '+ sum-excl-upper-expr))
       )
 
-    (let ((check (list 'lambda '(power)
-          (when sum-incl-lower-expr
-            `(and (<= ,sum-incl-lower-expr power ,sum-incl-upper-expr)
-                  (or (equal power 0.0)
-                      ,(when sum-excl-lower-expr
-                         `(or (<= power ,sum-excl-lower-expr)
-                               (<= ,sum-excl-upper-expr power)))))))))
-      check)))
+    (eval (list 'lambda '(power)
+                (when sum-incl-lower-expr
+                  `(and (<= ,sum-incl-lower-expr power ,sum-incl-upper-expr)
+                        (or (equal power 0.0)
+                            ,(when sum-excl-lower-expr
+                               `(or (<= power ,sum-excl-lower-expr)
+                                    (<= ,sum-excl-upper-expr power))))))))))
 
 
 (defun set-power-active (id power)
@@ -145,7 +144,7 @@
         (if-let ((val (alist-get key defaults-alist)))
             (setq args-alist (cons (cons key `(quote ,val)) args-alist)))))
 
-    (list 'lambda '(_) `(quote ,args-alist))))
+    (eval (list 'lambda '(_) `(quote ,args-alist)))))
 
 
 (defun calc-per-phase-current (power)
@@ -218,12 +217,11 @@
     (funcall action)     ;; call once at the start
     (set timer 0)
     (setq state-update-functions
-          (cons (list 'lambda '(ms-since-last-call)
-                      `(repeat-every-impl
-                        (quote ,timer)
-                        ,milliseconds
-                        ,action
-                        ms-since-last-call))
+          (cons (eval (list 'lambda '(ms-since-last-call)
+                            `(repeat-every-impl
+                              (quote ,timer)
+                              ,milliseconds
+                              ,action
+                              ms-since-last-call)))
                 state-update-functions))
     ))
-
