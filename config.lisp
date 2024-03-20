@@ -55,7 +55,9 @@
                                                          )))))
 
                             ;; consumer
-                            (make-meter :power 'consumer-power)))))
+                            (make-meter
+                             :hidden t
+                             :power 'consumer-power)))))
 
 
 

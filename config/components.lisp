@@ -242,6 +242,7 @@
          (power (plist-get plist :power))
          (config (plist-get plist :config))
          (successors (plist-get plist :successors))
+         (hidden (plist-get plist :hidden))
          (current-expr (if-let ((current (if power
                                              `(calc-per-phase-current ,power)
                                              (make-current-expr successors)
@@ -256,6 +257,7 @@
           `((category . meter)
             (name     . ,(format "meter-%s" id))
             (id       . ,id)
+            (hidden   . ,hidden)
             ,@current-expr
             ,@power-expr
             (stream   . ,(list
@@ -269,8 +271,9 @@
 
     (log.trace (format "Adding meter %s" id))
 
-    (add-to-components-alist meter)
-    (connect-successors id successors)
+    (unless hidden
+      (add-to-components-alist meter)
+      (connect-successors id successors))
     meter))
 
 
