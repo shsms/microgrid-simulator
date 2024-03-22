@@ -57,7 +57,8 @@
 
 (defun connect-successors (id successors)
   (dolist (successor successors)
-    (add-to-connections-alist id (alist-get 'id successor))))
+    (unless (alist-get 'hidden successor)
+      (add-to-connections-alist id (alist-get 'id successor)))))
 
 
 (defun make-power-expr (successors)
