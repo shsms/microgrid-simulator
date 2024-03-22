@@ -10,13 +10,33 @@
 (setq state-update-interval-ms 200)
 
 
+(every
+ :milliseconds 200
+ :call (lambda ()
+         (setq consumer-power
+               (+ 48000 (random 100)))
+
+         (setq voltage-per-phase
+               (list (+ 229.0 (/ (random 200) 100.0))
+                     (+ 229.0 (/ (random 200) 100.0))
+                     (+ 229.0 (/ (random 200) 100.0))))
+
+         (setq power-factor-per-phase
+               (list (+ 0.88 (/ (random 5) 100.0))
+                     (+ 0.88 (/ (random 5) 100.0))
+                     (+ 0.88 (/ (random 5) 100.0))))
+
+         (setq ac-frequency
+               (+ 49.99 (/ (random 4) 100.0)))))
+
+
 (setq battery-interval 200)
 (setq inverter-interval 200)
 (setq meter-interval 200)
 (setq ev-charger-interval 1500)
 
 
-(setq battery-defaults '((initial-soc      . 50.0)
+(setq battery-defaults '((initial-soc      . 90.0)
                          (soc-lower        . 10.0)
                          (soc-upper        . 90.0)
                          (capacity         . 92000.0)
@@ -29,6 +49,23 @@
 
 (setq inverter-defaults `((component-state . idle)
                           (rated-bounds    . (-30000.0 30000.0))))
+
+
+(setq ev-charger-defaults
+      (let* ((max-current-per-phase 16.0)
+             (max-power-per-phase (seq-map
+                                   (lambda (x) (* max-current-per-phase x))
+                                   voltage-per-phase))
+             (max-power (seq-reduce #'+ max-power-per-phase 0.0)))
+        `((initial-soc     . 50.0)
+          (soc-lower       . 0.0)
+          (soc-upper       . 100.0)
+          (component-state . ready)
+          (cable-state     . ev-locked)
+          (rated-bounds    . (0.0 ,max-power))
+          (capacity        . 30000.0)
+          (inclusion-lower . 0.0)
+          (inclusion-upper . ,max-power))))
 
 
 (make-grid
@@ -49,33 +86,17 @@
                              :successors (list
                                           (make-battery-inverter
                                            :successors (list
-                                                        (make-battery
-                                                         :config '((initial-soc . 20.0)
-                                                                   (relay-state . closed))
-                                                         )))))
+                                                        (make-battery)))))
+
+                            (make-meter
+                             :successors (list
+                                          (make-ev-charger)
+                                          (make-ev-charger
+                                           :config '((initial-soc . 10.0)
+                                                     (cable-state . ev-locked)))))
 
                             ;; consumer
                             (make-meter
                              :hidden t
                              :power 'consumer-power)))))
 
-
-
-(every
- :milliseconds 200
- :call (lambda ()
-         (setq consumer-power
-               (+ 1000 (random 100)))
-
-         (setq voltage-per-phase
-               (list (+ 229.0 (/ (random 200) 100.0))
-                     (+ 229.0 (/ (random 200) 100.0))
-                     (+ 229.0 (/ (random 200) 100.0))))
-
-         (setq power-factor-per-phase
-               (list (+ 0.88 (/ (random 5) 100.0))
-                     (+ 0.88 (/ (random 5) 100.0))
-                     (+ 0.88 (/ (random 5) 100.0))))
-
-         (setq ac-frequency
-               (+ 49.99 (/ (random 4) 100.0)))))

@@ -56,7 +56,8 @@ macro_rules! impl_enum_from_str {
                 type Err = ();
 
                 fn from_str(s: &str) -> Result<Self, Self::Err> {
-                    match <$t>::from_str_name(($p.to_string() + s).to_uppercase().as_str()) {
+                    let s = s.replace("-", "_");
+                    match <$t>::from_str_name(($p.to_string() + &s).to_uppercase().as_str()) {
                         Some(x) => Ok(x),
                         None => Err(()),
                     }
