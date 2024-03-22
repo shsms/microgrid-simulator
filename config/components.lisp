@@ -277,6 +277,140 @@
     meter))
 
 
+;;;;;;;;;;;;;;;;;
+;; EV Chargers ;;
+;;;;;;;;;;;;;;;;;
+
+(defmacro ev-charger-data-maker (data-alist defaults-alist)
+  (component-data-maker data-alist
+                        defaults-alist
+                        '(id power current voltage component-state
+                          cable-state inclusion-lower inclusion-upper)))
+
+(defun make-ev-charger (&rest plist)
+  (let* ((id (or (plist-get plist :id) (get-comp-id)))
+         (interval (or (plist-get plist :interval) ev-charger-interval))
+         (config (plist-get plist :config))
+         (config-alist `(,@config ,@ev-charger-defaults))
+
+         (power-symbol  (power-symbol-from-id id))
+         (energy-symbol (energy-symbol-from-id id))
+
+         (capacity    (alist-get 'capacity    config-alist))
+         (initial-soc (alist-get 'initial-soc config-alist))
+
+         (soc-symbol (soc-symbol-from-id id))
+         (soc-expr `(setq ,soc-symbol
+                          (+ ,initial-soc
+                             ;; limit to 1 decimal place
+                             (/ (fround
+                                 (* 1000.0 (/ ,energy-symbol ,capacity)))
+                                10.0))))
+
+
+         (rated-bounds (or (alist-get 'rated-bounds config-alist) '(0.0 0.0)))
+         (rated-lower (car rated-bounds))
+         (rated-upper (cadr rated-bounds))
+
+         (incl-lower-symbol (inclusion-lower-symbol-from-id id))
+         (incl-upper-symbol (inclusion-upper-symbol-from-id id))
+
+         (soc-lower (alist-get 'soc-lower config-alist))
+         (soc-upper (alist-get 'soc-upper config-alist))
+
+         (incl-lower 0.0)
+         (incl-upper-expr `(setq ,incl-upper-symbol
+                                 (if (< (- ,soc-upper ,soc-symbol) 10.0)
+                                     (* ,rated-upper
+                                        (bounded-exp-decay ,(- soc-upper 10.0)
+                                                           ,soc-upper
+                                                           ,soc-symbol
+                                                           1.2
+                                                           0.0))
+                                     ,rated-upper)))
+
+         (is-healthy (is-healthy-ev-charger config-alist))
+
+         (power-expr (when is-healthy
+                       `((power . ,power-symbol)
+                         (current . (ac-current-from-power ,power-symbol))
+                         (component-state . (power->ev-component-state ,power-symbol)))))
+
+         (bounds-expr `((inclusion-lower . 0.0)
+                        (inclusion-upper . ,rated-upper)))
+         (bounds-check-func-symbol (bounds-check-func-symbol-from-id id))
+         (set-power-func-symbol (set-power-func-symbol-from-id id))
+
+         (ev-charger
+          `((category . ev-charger)
+            (name     . ,(format "ev-charger-%s" id))
+            (id       . ,id)
+            ,@power-expr
+            (stream   . ,(list
+                          `(interval . ,interval)
+                          (cons 'data
+                                (macroexpand '(ev-charger-data-maker
+                                               `((id . ,id)
+                                                 ,@bounds-expr
+                                                 ,@power-expr)
+                                               config-alist))))))))
+
+    (log.trace (format "Adding ev-charger %s. Healthy: %s" id is-healthy))
+
+    (when (not (boundp power-symbol))
+      (set power-symbol 0.0)
+      (set energy-symbol 0.0)
+      (set soc-symbol (eval initial-soc)))
+
+    (eval incl-upper-expr)
+    (add-to-components-alist ev-charger)
+
+    (setq state-update-functions
+          (cons (list 'lambda '(ms-since-last-call)
+                      `(eval (setq ,energy-symbol
+                                   (+ ,energy-symbol ;; ->> ?
+                                      (* ,power-symbol
+                                         (/ ms-since-last-call
+                                            ,(* 60.0 60.0 1000.0))))))
+                      `(eval ,soc-expr)
+                      `(eval ,incl-upper-expr)
+                      `(cond ((< ,power-symbol 0.0)
+                              (setq ,power-symbol 0.0))
+                             ((> ,power-symbol ,incl-upper-symbol)
+                              (setq ,power-symbol ,incl-upper-symbol))))
+                state-update-functions))
+
+    (set bounds-check-func-symbol
+         (if is-healthy
+             (list 'lambda '(power)
+                   `(<= ,rated-lower
+                        power
+                        ,rated-upper))
+             (list 'lambda '(power)
+                   (log.error "ev-charger is unhealthy")
+                   nil)))
+
+    (set set-power-func-symbol
+         (if is-healthy
+             `(lambda (power)
+                (if (< power ,(* 6.0 3 220.0))
+                    (progn
+                      (log.info
+                       (format "Given power %s W is too low for ev-charger %s.  Not charging."
+                               power ,id))
+                      (setq ,power-symbol 0.0))
+                    (log.info (format "Setting power of ev-charger %s to %s W (was: %s W)"
+                                      ,id
+                                      power
+                                      ,(power-symbol-from-id id)))
+                    (setq ,(power-symbol-from-id id) power)))
+           '(lambda (power)
+             (log.error "Can't set power: ev-charger is unhealthy")
+             nil)))
+
+
+    ev-charger))
+
 ;;;;;;;;;;
 ;; Grid ;;
 ;;;;;;;;;;

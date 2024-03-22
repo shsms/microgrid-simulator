@@ -163,6 +163,18 @@
     '(0.0 0.0 0.0)))
 
 
+(defun ac-current-from-power (power)
+  (if (numberp power)
+      (let ((sum-voltage (seq-reduce '+ voltage-per-phase 0.0))
+            (vp1 (car voltage-per-phase))
+            (vp2 (cadr voltage-per-phase))
+            (vp3 (caddr voltage-per-phase)))
+        (list (/ (* power (/ vp1 sum-voltage)) vp1)
+              (/ (* power (/ vp2 sum-voltage)) vp2)
+              (/ (* power (/ vp3 sum-voltage)) vp3)))
+    '(0.0 0.0 0.0)))
+
+
 (defun calc-per-phase-power (power)
   (if (numberp power)
       (let ((total-voltage (seq-reduce '+ voltage-per-phase 0.0)))
@@ -184,13 +196,27 @@
         (eq comp-state 'charging)
         (eq comp-state 'discharging))))
 
+(defun is-healthy-ev-charger (ev)
+  (let ((comp-state (alist-get 'component-state ev))
+        (cable-state (alist-get 'cable-state ev)))
+    (and (or (eq comp-state 'ready)
+             (eq comp-state 'charging)
+             (eq comp-state 'discharging))
+         (eq cable-state 'ev-locked))))
+
 (defun power->component-state (power)
   (cond
     ((not (numberp power)) 'error)
     ((> power 0.0) 'charging)
     ((< power 0.0) 'discharging)
-    (:else       'idle)))
+    (:else         'idle)))
 
+(defun power->ev-component-state (power)
+  (cond
+    ((not (numberp power)) 'error)
+    ((> power 0.0) 'charging)
+    ((< power 0.0) 'discharging)
+    (:else         'ready)))
 
 (defun bounded-exp-decay (start stop val base min_val)
   (let* ((base (max base 1.1))
