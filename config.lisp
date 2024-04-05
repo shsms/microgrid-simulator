@@ -47,8 +47,11 @@
                          (relay-state      . closed)))
 
 
-(setq inverter-defaults `((component-state . idle)
-                          (rated-bounds    . (-30000.0 30000.0))))
+(setq battery-inverter-defaults `((component-state . idle)
+                                  (rated-bounds    . (-30000.0 30000.0))))
+
+(setq solar-inverter-defaults `((component-state . idle)
+                                (rated-bounds    . (-30000.0 0.0))))
 
 
 (setq ev-charger-defaults
@@ -76,24 +79,36 @@
               (make-meter
                :id 2
                :successors (list
+                            ;; battery 1
                             (make-meter
                              :successors (list
                                           (make-battery-inverter
                                            :successors (list
                                                         (make-battery)))))
 
+                            ;; battery 2
                             (make-meter
                              :successors (list
                                           (make-battery-inverter
                                            :successors (list
                                                         (make-battery)))))
 
+                            ;; ev chargers
                             (make-meter
                              :successors (list
                                           (make-ev-charger)
                                           (make-ev-charger
                                            :config '((initial-soc . 10.0)
                                                      (cable-state . ev-locked)))))
+
+                            ;; solar inverters
+                            (make-meter
+                             :successors (list
+                                          (make-solar-inverter
+                                           :sunlight% 100.0
+                                           :config '((component-state . idle)
+                                                     (rated-bounds . (-8000.0 0.0))))
+                                          (make-solar-inverter :sunlight% 60.0)))
 
                             ;; consumer
                             (make-meter

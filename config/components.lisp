@@ -139,7 +139,7 @@
          (interval (or (plist-get plist :interval) inverter-interval))
 
          (config (plist-get plist :config))
-         (config-alist `(,@config ,@inverter-defaults))
+         (config-alist `(,@config ,@battery-inverter-defaults))
 
          (successors (plist-get plist :successors))
 
@@ -222,6 +222,86 @@
 
     (add-to-components-alist inverter)
     (connect-successors id successors)
+    inverter))
+
+(defun make-solar-inverter (&rest plist)
+  (let* ((id (or (plist-get plist :id) (get-comp-id)))
+         (interval (or (plist-get plist :interval) inverter-interval))
+
+         (sunlight% (plist-get plist :sunlight%))
+
+         (config (plist-get plist :config))
+         (config-alist `(,@config ,@solar-inverter-defaults))
+
+         (power-symbol  (power-symbol-from-id id))
+
+         (rated-bounds (or (alist-get 'rated-bounds config-alist) '(0.0 0.0)))
+         (rated-lower (car rated-bounds))
+         (rated-upper (cadr rated-bounds))
+
+         (is-healthy (is-healthy-inverter config-alist))
+
+         (power-expr (when is-healthy
+                       `((power . ,power-symbol)
+                         (per-phase-power . (calc-per-phase-power ,power-symbol))
+                         (voltage . voltage-per-phase)
+                         (current . (calc-per-phase-current
+                                     ,power-symbol))
+                         (component-state . (power->component-state
+                                             ,power-symbol)))))
+
+         (bounds-check-func-symbol (bounds-check-func-symbol-from-id id))
+         (set-power-func-symbol (set-power-func-symbol-from-id id))
+
+         (inverter
+          `((category . inverter)
+            (type     . solar)
+            (name     . ,(format "inv-pv-%s" id))
+            (id       . ,id)
+            ,@power-expr
+            (stream   . ,(list
+                          `(interval . ,interval)
+                          (cons 'data
+                                (macroexpand '(inverter-data-maker
+                                        `((id . ,id)
+                                          (inclusion-lower . ,rated-lower)
+                                          (inclusion-upper . ,rated-upper)
+                                          ,@power-expr)
+                                        config-alist))))))))
+
+    (log.trace (format "Adding solar inverter %s. Healthy: %s" id is-healthy))
+
+    (when (not (boundp power-symbol))
+      (set power-symbol 0.0))
+
+    (set bounds-check-func-symbol
+         (if is-healthy
+             (list 'lambda '(power)
+                   `(<= ,rated-lower power ,rated-upper))
+             (list 'lambda '(power)
+                   (log.error "inverter is unhealthy")
+                   nil)))
+
+    (set set-power-func-symbol
+         (if is-healthy
+             `(lambda (power)
+                (let ((max-power ,(* rated-lower (/ sunlight% 100.0))))
+                  (if (< power max-power)
+                      (progn
+                        (log.info
+                         (format "Given power %s W is not available for inverter %s.  Limiting to %s W."
+                                 power ,id max-power))
+                        (setq ,power-symbol max-power))
+                      (log.info (format "Setting power of inverter %s to %s W (was: %s W)"
+                                        ,id
+                                        power
+                                        ,(power-symbol-from-id id)))
+                      (setq ,(power-symbol-from-id id) power))))
+           '(lambda (power)
+             (log.error "Can't set power: inverter is unhealthy")
+             nil)))
+
+    (add-to-components-alist inverter)
     inverter))
 
 
@@ -407,7 +487,6 @@
            '(lambda (power)
              (log.error "Can't set power: ev-charger is unhealthy")
              nil)))
-
 
     ev-charger))
 
