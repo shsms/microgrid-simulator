@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::pin::Pin;
 use std::time::{Duration, SystemTime};
 
@@ -5,23 +6,44 @@ use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::Stream;
 
 use crate::lisp::Config;
+use crate::proto::common::components::ComponentCategory;
+use crate::proto::common::components::InverterType;
 use crate::proto::microgrid::microgrid_server::Microgrid;
 use crate::proto::microgrid::{
-    ComponentData, ComponentFilter, ComponentIdParam, ComponentList, ConnectionFilter,
+    component, ComponentData, ComponentFilter, ComponentIdParam, ComponentList, ConnectionFilter,
     ConnectionList, MicrogridMetadata, SetBoundsParam, SetPowerActiveParam, SetPowerReactiveParam,
 };
 
 pub struct MicrogridServer {
     pub config: Config,
     pub timeout_tracker: crate::timeout_tracker::TimeoutTracker,
+    pub bat_inverter_ids: HashSet<u64>,
 }
 
 impl MicrogridServer {
     pub fn new(config: Config) -> Self {
+        let bat_inv_ids = config
+            .components()
+            .unwrap()
+            .components
+            .iter()
+            .filter(|c| {
+                c.category == ComponentCategory::Inverter as i32
+                    && match c.metadata.as_ref().unwrap() {
+                        component::Metadata::Inverter(inverter) => {
+                            inverter.r#type == InverterType::Battery as i32
+                        }
+                        _ => false,
+                    }
+            })
+            .map(|c| c.id)
+            .collect();
         let new = Self {
             config,
             timeout_tracker: crate::timeout_tracker::TimeoutTracker::new(),
+            bat_inverter_ids: bat_inv_ids,
         };
+
         new.start_timeout_tracker();
         new
     }
@@ -71,7 +93,9 @@ impl Microgrid for MicrogridServer {
         _request: tonic::Request<SetPowerActiveParam>,
     ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
         let request = _request.into_inner();
-        self.timeout_tracker.add(request.component_id);
+        if self.bat_inverter_ids.contains(&request.component_id) {
+            self.timeout_tracker.add(request.component_id);
+        }
         let res = self
             .config
             .set_power_active(request.component_id, request.power);
