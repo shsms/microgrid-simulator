@@ -272,7 +272,7 @@
     (log.trace (format "Adding solar inverter %s. Healthy: %s" id is-healthy))
 
     (when (not (boundp power-symbol))
-      (set power-symbol 0.0))
+      (set power-symbol (* rated-lower (/ sunlight% 100.0))))
 
     (set bounds-check-func-symbol
          (if is-healthy
