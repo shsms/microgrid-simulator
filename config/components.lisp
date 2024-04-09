@@ -55,7 +55,7 @@
                                                            ,soc-lower
                                                            ,soc-symbol
                                                            1.2
-                                                           0.0))
+                                                           0.3))
                                      ,rated-lower)))
          (incl-upper-expr `(setq ,incl-upper-symbol
                                  (if (< (- ,soc-upper ,soc-symbol) 10.0)
@@ -64,7 +64,7 @@
                                                            ,soc-upper
                                                            ,soc-symbol
                                                            1.2
-                                                           0.0))
+                                                           0.3))
                                      ,rated-upper)))
 
          (is-healthy (is-healthy-battery config-alist))
@@ -406,7 +406,7 @@
                                                            ,soc-upper
                                                            ,soc-symbol
                                                            1.2
-                                                           0.0))
+                                                           0.3))
                                      ,rated-upper)))
 
          (is-healthy (is-healthy-ev-charger config-alist))
