@@ -263,6 +263,7 @@ impl Config {
             match res {
                 Ok(event) => {
                     if let notify::EventKind::Modify(_) = event.kind {
+                        tokio::time::sleep(Duration::from_millis(50)).await;
                         self.reload();
                     }
                 }
