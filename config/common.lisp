@@ -5,7 +5,8 @@
   (setq comp--id--counter 1000)
   (setq connections-alist nil)
   (setq components-alist nil)
-  (setq state-update-functions nil))
+  (setq state-update-functions nil)
+  (setq metadata nil))
 
 (defun get-comp-id ()
   (setq comp--id--counter (+ comp--id--counter 1)))

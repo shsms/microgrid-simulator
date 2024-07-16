@@ -70,7 +70,8 @@ impl Microgrid for MicrogridServer {
         &self,
         _request: tonic::Request<()>,
     ) -> std::result::Result<tonic::Response<MicrogridMetadata>, tonic::Status> {
-        todo!()
+        let metadata = self.config.metadata().unwrap();
+        Ok(tonic::Response::new(metadata))
     }
 
     async fn list_components(

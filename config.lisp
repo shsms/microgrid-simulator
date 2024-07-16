@@ -9,6 +9,8 @@
 (setq retain-requests-duration-ms 60000)
 (setq state-update-interval-ms 200)
 
+(setq metadata '((microgrid-id . 2200)
+                 (location . (52.52 13.405))))  ;; Berlin
 
 (every
  :milliseconds 200

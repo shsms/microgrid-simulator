@@ -11,7 +11,7 @@ use crate::proto::{
     },
     microgrid::{
         battery, component, component_data, ev_charger, grid, inverter, meter, Component,
-        ComponentData, ComponentList, Connection, ConnectionList,
+        ComponentData, ComponentList, Connection, ConnectionList, MicrogridMetadata, Location,
     },
 };
 use notify::{RecommendedWatcher, Watcher};
@@ -36,12 +36,15 @@ intern! {
         category: "category",
         interval: "interval",
         capacity: "capacity",
+        location: "location",
+        metadata: "metadata",
         soc_lower: "soc-lower",
         soc_upper: "soc-upper",
         relay_state: "relay-state",
         cable_state: "cable-state",
         socket_addr: "socket-addr",
         ac_frequency: "ac-frequency",
+        microgrid_id: "microgrid-id",
         inclusion_lower: "inclusion-lower",
         inclusion_upper: "inclusion-upper",
         exclusion_lower: "exclusion-lower",
@@ -346,6 +349,37 @@ Invalid socket-addr.  Add a config line in this format:
             .unwrap_or(5000);
 
         Duration::from_millis(dur_ms as u64)
+    }
+
+    pub fn metadata(&self) -> Result<MicrogridMetadata, Error> {
+        let alist = self.symbols.metadata.get().unwrap_or_else(|_|TulispObject::nil());
+
+        let microgrid_id = alist_get_as!(
+            &mut self.ctx.borrow_mut(),
+            &alist,
+            &self.symbols.microgrid_id,
+            as_int
+        ).unwrap_or_default() as u64;
+        let location = alist_get_as!(
+            &mut self.ctx.borrow_mut(),
+            &alist,
+            &self.symbols.location
+        ).unwrap_or_default();
+
+        let latitude = location.car()?.as_float().map(|x| Some(x)).unwrap_or(None);
+        let longitude = location.cadr()?.as_float().map(|x| Some(x)).unwrap_or(None);
+
+        Ok(MicrogridMetadata {
+            microgrid_id,
+            location: if latitude.is_some() || longitude.is_some() {
+                Some(Location {
+                    latitude: latitude.unwrap_or_default() as f32,
+                    longitude: longitude.unwrap_or_default() as f32,
+                })
+            } else {
+                None
+            },
+        })
     }
 
     pub fn components(&self) -> Result<ComponentList, Error> {
