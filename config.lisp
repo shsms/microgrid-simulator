@@ -1,17 +1,42 @@
-(unless (boundp 'mock-config-loaded)
-  (setq mock-config-loaded t)
-  (load "config/common.lisp")
-  (load "config/components.lisp"))
+;; This file contains the configuration for the microgrid that's being
+;; simulated.  This file is reloaded every time it is updated.
+;; Changes can be made to the simulation by making changes to this
+;; file and saving it, and the changes will take effect immediately.
+;;
+;; The simulator implementation doesn't have to be reloaded every time
+;; we make a change to the simulation config.
+(unless (boundp 'simulator-loaded)
+  (setq simulator-loaded t)
+  (load "sim/common.lisp")
+  (load "sim/components.lisp"))
 
+;; But the state of the simulator needs to be reset every time this
+;; file is being reloaded.
 (reset-state)
 
-(setq socket-addr "[::1]:8800")
-(setq retain-requests-duration-ms 60000)
+
+;; Simulator configuration
 (setq state-update-interval-ms 200)
 
+
+;; API service config
+(setq socket-addr "[::1]:8800")  ;; Needs restart to take effect.
+(setq retain-requests-duration-ms 60000)
+(setq battery-interval 1000)
+(setq inverter-interval 1000)
+(setq meter-interval 200)
+(setq ev-charger-interval 1000)
+
+
+;; Microgrid config
 (setq metadata '((microgrid-id . 2200)
                  (location . (52.52 13.405))))  ;; Berlin
 
+
+;; Simulation config
+
+;; This simulates the external factors that affect the microgrid,
+;; including the consumer power and the state of the grid.
 (every
  :milliseconds 200
  :call (lambda ()
@@ -31,13 +56,8 @@
          (setq ac-frequency
                (+ 49.99 (/ (random 4) 100.0)))))
 
-
-(setq battery-interval 200)
-(setq inverter-interval 200)
-(setq meter-interval 200)
-(setq ev-charger-interval 1500)
-
-
+;; Component defaults.  All these defaults can be overridden
+;; separately for individual components, if necessary.
 (setq battery-defaults '((initial-soc      . 90.0)
                          (soc-lower        . 10.0)
                          (soc-upper        . 90.0)
@@ -73,6 +93,8 @@
           (inclusion-upper . ,max-power))))
 
 
+;; And finally, this builds the component graph/config of the
+;; microgrid that's being simulated.
 (make-grid
  :id 1
  :rated-fuse-current 100
