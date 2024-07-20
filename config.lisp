@@ -1,7 +1,7 @@
 (unless (boundp 'mock-config-loaded)
   (setq mock-config-loaded t)
-  (load "config/common.lisp")
-  (load "config/components.lisp"))
+  (load "sim/common.lisp")
+  (load "sim/components.lisp"))
 
 (reset-state)
 
