@@ -234,6 +234,7 @@
          (config-alist `(,@config ,@solar-inverter-defaults))
 
          (power-symbol  (power-symbol-from-id id))
+         (min-power-symbol (power-symbol-from-id (format "min-%s" id)))
 
          (rated-bounds (or (alist-get 'rated-bounds config-alist) '(0.0 0.0)))
          (rated-lower (car rated-bounds))
@@ -271,8 +272,10 @@
 
     (log.trace (format "Adding solar inverter %s. Healthy: %s" id is-healthy))
 
-    (when (not (boundp power-symbol))
-      (set power-symbol (* rated-lower (/ sunlight% 100.0))))
+    (when (not (boundp min-power-symbol))
+      (set min-power-symbol rated-lower))
+
+    (set power-symbol (max (eval min-power-symbol) (* rated-lower (/ sunlight% 100.0))))
 
     (set bounds-check-func-symbol
          (if is-healthy
@@ -285,18 +288,19 @@
     (set set-power-func-symbol
          (if is-healthy
              `(lambda (power)
-                (let ((max-power ,(* rated-lower (/ sunlight% 100.0))))
-                  (if (< power max-power)
+                (let ((min-power ,(* rated-lower (/ sunlight% 100.0))))
+                  (setq ,min-power-symbol (max power min-power))
+                  (if (< power min-power)
                       (progn
                         (log.info
                          (format "Given power %s W is not available for inverter %s.  Limiting to %s W."
-                                 power ,id max-power))
-                        (setq ,power-symbol max-power))
+                                 power ,id min-power))
+                        (setq ,power-symbol min-power))
                       (log.info (format "Setting power of inverter %s to %s W (was: %s W)"
                                         ,id
                                         power
                                         ,(power-symbol-from-id id)))
-                      (setq ,(power-symbol-from-id id) power))))
+                      (setq ,power-symbol power))))
            '(lambda (power)
              (log.error "Can't set power: inverter is unhealthy")
              nil)))
