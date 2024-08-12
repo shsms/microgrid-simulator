@@ -191,6 +191,9 @@
              (eq comp-state 'discharging))
          (eq relay-state 'closed))))
 
+(defun is-healthy-meter (met)
+  (eq (alist-get 'component-state met) 'ok))
+
 (defun is-healthy-inverter (inv)
   (let ((comp-state (alist-get 'component-state inv)))
     (or (eq comp-state 'idle)

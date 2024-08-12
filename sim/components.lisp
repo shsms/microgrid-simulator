@@ -309,10 +309,10 @@
 ;; Meters ;;
 ;;;;;;;;;;;;
 
-(defmacro meter-data-maker (data-alist)
+(defmacro meter-data-maker (data-alist defaults-alist)
   (component-data-maker data-alist
-                        nil
-                        '(id power per-phase-power current voltage)))
+                        defaults-alist
+                        '(id power per-phase-power current voltage component-state)))
 
 
 
@@ -320,19 +320,25 @@
   (let* ((id (or (plist-get plist :id) (get-comp-id)))
          (interval (or (plist-get plist :interval) meter-interval))
          (power (plist-get plist :power))
+
          (config (plist-get plist :config))
+         (config-alist `(,@config ,@meter-defaults))
+
          (successors (plist-get plist :successors))
          (hidden (plist-get plist :hidden))
-         (current-expr (if-let ((current (if power
-                                             `(calc-per-phase-current ,power)
-                                             (make-current-expr successors)
-                                             )))
-                           `((current . ,current))))
-         (power-expr (if-let ((power (or power
-                                         (make-power-expr successors))))
-                         `((power . ,power)
-                           (per-phase-power . (calc-per-phase-power ,power))
-                           (voltage . voltage-per-phase))))
+         (is-healthy (is-healthy-meter config-alist))
+         (current-expr (when is-healthy
+                         (if-let ((current (if power
+                                               `(calc-per-phase-current ,power)
+                                               (make-current-expr successors)
+                                               )))
+                             `((current . ,current)))))
+         (power-expr (when is-healthy
+                       (if-let ((power (or power
+                                           (make-power-expr successors))))
+                           `((power . ,power)
+                             (per-phase-power . (calc-per-phase-power ,power))
+                             (voltage . voltage-per-phase)))))
          (meter
           `((category . meter)
             (name     . ,(format "meter-%s" id))
@@ -344,10 +350,10 @@
                           `(interval . ,interval)
                           (cons 'data
                                 (macroexpand '(meter-data-maker
-                                        `((id    . ,id)
-                                          ,@current-expr
-                                          ,@power-expr
-                                          ,@config)))))))))
+                                               `((id    . ,id)
+                                                 ,@current-expr
+                                                 ,@power-expr)
+                                               config-alist))))))))
 
     (log.trace (format "Adding meter %s" id))
 

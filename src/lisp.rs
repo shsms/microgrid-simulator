@@ -709,6 +709,15 @@ impl Config {
             ts: Some(Timestamp::from(std::time::SystemTime::now())),
             id,
             data: Some(component_data::Data::Meter(meter::Meter {
+                state: Some(meter::State {
+                    component_state: enum_from_alist::<meter::ComponentState>(
+                        ctx,
+                        &alist,
+                        &symbols.component_state,
+                        true,
+                    )
+                    .unwrap_or_default() as i32,
+                }),
                 data: Some(meter::Data {
                     ac: Some(Self::ac_from_alist(ctx, &alist, symbols)?),
                     ..Default::default()

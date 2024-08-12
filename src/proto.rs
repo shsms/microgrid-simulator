@@ -1,6 +1,6 @@
 use self::{
     common::components::{BatteryType, ComponentCategory, EvChargerType, InverterType},
-    microgrid::{battery, ev_charger, inverter},
+    microgrid::{battery, ev_charger, inverter, meter},
 };
 
 pub mod common {
@@ -72,6 +72,7 @@ impl_enum_from_str!(
     (BatteryType, "BATTERY_TYPE_"),
     (InverterType, "INVERTER_TYPE_"),
     (EvChargerType, "EV_CHARGER_TYPE_"),
+    (meter::ComponentState, "COMPONENT_STATE_"),
     (battery::ComponentState, "COMPONENT_STATE_"),
     (battery::RelayState, "RELAY_STATE_"),
     (inverter::ComponentState, "COMPONENT_STATE_"),
