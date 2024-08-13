@@ -68,13 +68,13 @@
                          (component-state  . idle)
                          (relay-state      . closed)))
 
+(setq meter-defaults '((component-state . ok)))
 
 (setq battery-inverter-defaults `((component-state . idle)
                                   (rated-bounds    . (-30000.0 30000.0))))
 
 (setq solar-inverter-defaults `((component-state . idle)
                                 (rated-bounds    . (-30000.0 0.0))))
-
 
 (setq ev-charger-defaults
       (let* ((max-current-per-phase 16.0)
