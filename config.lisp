@@ -134,6 +134,11 @@
                                                      (rated-bounds . (-8000.0 0.0))))
                                           (make-solar-inverter :sunlight% 60.0)))
 
+                            ;; CHP
+                            (make-meter
+                             :power 1000.0
+                             :successors (list (make-chp)))
+
                             ;; consumer
                             (make-meter
                              :hidden t

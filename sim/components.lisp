@@ -500,6 +500,22 @@
 
     ev-charger))
 
+;;;;;;;;;
+;; CHP ;;
+;;;;;;;;;
+
+(defun make-chp (&rest plist)
+  (let ((id (or (plist-get plist :id) (get-comp-id)))
+        (chp
+         `((category . chp)
+           (name     . ,(format "chp-%s" id))
+           (id       . ,id))))
+    (log.trace (format "Adding chp %s" id))
+
+    (add-to-components-alist chp)
+    chp))
+
+
 ;;;;;;;;;;
 ;; Grid ;;
 ;;;;;;;;;;
