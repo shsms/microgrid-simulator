@@ -136,7 +136,7 @@
 
                             ;; CHP
                             (make-meter
-                             :power 1000.0
+                             :power -2000.0
                              :successors (list (make-chp)))
 
                             ;; consumer
